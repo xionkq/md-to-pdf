@@ -55,11 +55,13 @@ export async function markdownToPdf(markdown: string, options: MarkdownToPdfOpti
 
   options.onProgress?.('parse');
   const { tree } = await parseMarkdown(markdown);
-
+  console.log('tree', tree);
   options.onProgress?.('layout');
 
-  const pdfContent = mapRemarkToPdfContent(tree as any);
+  const pdfContent = await mapRemarkToPdfContent(tree as any, { imageResolver: options.imageResolver });
   const docDefinition = buildDocDefinition(pdfContent, options);
+
+  console.log('pdfContent', pdfContent);
 
   // Lazy import pdfmake (browser build) and create PDF
   options.onProgress?.('emit');

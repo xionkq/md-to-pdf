@@ -6,7 +6,7 @@ describe('mapping: heading & paragraph & inline', () => {
   it('maps headings to styles h1~h3 and paragraphs with inline emphasis/link', async () => {
     const md = `# H1\n\n## H2\n\n### H3\n\nThis is **bold** and *em* and ~~del~~ and \`code\` and a [link](https://example.com).`;
     const { tree } = await parseMarkdown(md);
-    const content = mapRemarkToPdfContent(tree as any);
+    const content = await mapRemarkToPdfContent(tree as any);
 
     // Expect first three items to be heading blocks with respective styles
     expect(content[0]).toMatchObject({ style: 'h1' });

@@ -17,7 +17,7 @@ async function parseMarkdown(markdown) {
 }
 
 // src/mapping/index.ts
-function mapRemarkToPdfContent(tree) {
+async function mapRemarkToPdfContent(tree, ctx = {}) {
   const content = [];
   function textFromChildren(children) {
     let acc = "";
@@ -28,10 +28,10 @@ function mapRemarkToPdfContent(tree) {
     }
     return acc;
   }
-  function visit(node) {
+  async function visit(node) {
     switch (node.type) {
       case "root":
-        (node.children || []).forEach(visit);
+        for (const child of node.children || []) await visit(child);
         break;
       case "heading": {
         const txt = textFromChildren(node.children || []);
@@ -40,31 +40,161 @@ function mapRemarkToPdfContent(tree) {
         break;
       }
       case "paragraph": {
-        const parts = inline(node.children || []);
-        content.push({ text: parts, style: "paragraph" });
+        const children = node.children || [];
+        const hasImage = !!children.find((c) => c.type === "image");
+        if (hasImage && ctx.imageResolver) {
+          let runs = [];
+          const flush = () => {
+            if (runs.length) {
+              content.push({ text: runs, style: "paragraph" });
+              runs = [];
+            }
+          };
+          for (const ch of children) {
+            if (ch.type === "image") {
+              flush();
+              try {
+                const dataUrl = await ctx.imageResolver(ch.url);
+                content.push({ image: dataUrl, margin: [0, 4, 0, 8] });
+              } catch {
+                if (ch.alt) runs.push({ text: ch.alt, italics: true, color: "#666" });
+              }
+            } else {
+              const segs = inline([ch]);
+              runs.push(...segs);
+            }
+          }
+          flush();
+        } else {
+          const parts = inline(children);
+          content.push({ text: parts, style: "paragraph" });
+        }
         break;
       }
       case "thematicBreak":
         content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1 }] });
         break;
       case "list": {
-        const items = (node.children || []).map((li) => ({ text: textFromChildren(li.children || []) }));
-        if (node.ordered) content.push({ ol: items.map((i) => i.text) });
-        else content.push({ ul: items.map((i) => i.text) });
+        const listObj = await buildListObject(node);
+        content.push(listObj);
         break;
       }
       case "blockquote": {
         const inner = [];
-        (node.children || []).forEach((n) => {
+        for (const n of node.children || []) {
           if (n.type === "paragraph") inner.push({ text: inline(n.children || []), margin: [0, 2, 0, 2] });
-          else visit(n);
-        });
+          else await visit(n);
+        }
         content.push({ stack: inner, margin: [8, 4, 0, 8], style: "paragraph" });
+        break;
+      }
+      case "code": {
+        const value = node.value ?? "";
+        content.push({ text: value, style: "code", preserveLeadingSpaces: true, margin: [0, 4, 0, 8] });
+        break;
+      }
+      case "table": {
+        const rows = [];
+        const aligns = node.align || [];
+        for (const row of node.children || []) {
+          const cells = [];
+          for (let c = 0; c < (row.children || []).length; c++) {
+            const cell = row.children[c];
+            const txt = textFromChildren(cell.children || []);
+            const cellDef = { text: txt };
+            const alignment = aligns[c] || null;
+            if (alignment === "center" || alignment === "right") {
+              cellDef.alignment = alignment;
+            }
+            cells.push(cellDef);
+          }
+          rows.push(cells);
+        }
+        if (rows.length > 0) rows[0] = rows[0].map((c) => ({ ...c, bold: true }));
+        content.push({ table: { body: rows }, layout: "lightHorizontalLines", margin: [0, 4, 0, 8] });
+        break;
+      }
+      case "image": {
+        const src = node.url;
+        if (ctx.imageResolver) {
+          try {
+            const dataUrl = await ctx.imageResolver(src);
+            content.push({ image: dataUrl, margin: [0, 4, 0, 8] });
+          } catch {
+            if (node.alt) content.push({ text: node.alt, italics: true, color: "#666" });
+          }
+        } else {
+          if (node.alt) content.push({ text: node.alt, italics: true, color: "#666" });
+        }
         break;
       }
       default:
         break;
     }
+  }
+  async function buildListObject(listNode) {
+    const items = [];
+    for (const li of listNode.children || []) {
+      const blocks = [];
+      let prefixed = false;
+      for (const child of li.children || []) {
+        if (child.type === "paragraph") {
+          const runs = inline(child.children || []);
+          if (typeof li.checked === "boolean" && !prefixed) {
+            const box = li.checked ? "\u2611 " : "\u2610 ";
+            if (typeof runs[0] === "string") runs[0] = box + runs[0];
+            else runs.unshift(box);
+            prefixed = true;
+          }
+          blocks.push({ text: runs, style: "paragraph", margin: [0, 2, 0, 2] });
+        } else if (child.type === "list") {
+          blocks.push(await buildListObject(child));
+        } else if (child.type === "table") {
+          blocks.push(buildTable(child));
+        } else if (child.type === "code") {
+          blocks.push({ text: child.value ?? "", style: "code", preserveLeadingSpaces: true, margin: [0, 4, 0, 8] });
+        } else if (child.type === "blockquote") {
+          const inner = [];
+          for (const n of child.children || []) {
+            if (n.type === "paragraph") inner.push({ text: inline(n.children || []), margin: [0, 2, 0, 2] });
+          }
+          blocks.push({ stack: inner, margin: [8, 4, 0, 8], style: "paragraph" });
+        } else if (child.type === "image") {
+          if (ctx.imageResolver) {
+            try {
+              const dataUrl = await ctx.imageResolver(child.url);
+              blocks.push({ image: dataUrl, margin: [0, 4, 0, 8] });
+            } catch {
+              if (child.alt) blocks.push({ text: child.alt, italics: true, color: "#666" });
+            }
+          } else if (child.alt) {
+            blocks.push({ text: child.alt, italics: true, color: "#666" });
+          }
+        }
+      }
+      items.push(blocks.length === 1 ? blocks[0] : { stack: blocks });
+    }
+    return listNode.ordered ? { ol: items } : { ul: items };
+  }
+  function buildTable(node) {
+    const rows = [];
+    const aligns = node.align || [];
+    for (const row of node.children || []) {
+      const cells = [];
+      for (let c = 0; c < (row.children || []).length; c++) {
+        const cell = row.children[c];
+        const txt = textFromChildren(cell.children || []);
+        const cellDef = { text: txt };
+        const alignment = aligns[c] || null;
+        if (alignment === "center" || alignment === "right") {
+          cellDef.alignment = alignment;
+        }
+        cells.push(cellDef);
+      }
+      rows.push(cells);
+    }
+    if (rows.length > 0) rows[0] = rows[0].map((c) => ({ ...c, bold: true }));
+    return { table: { body: rows }, layout: "lightHorizontalLines", margin: [0, 4, 0, 8] };
   }
   function inline(nodes) {
     const parts = [];
@@ -79,7 +209,7 @@ function mapRemarkToPdfContent(tree) {
     }
     return parts;
   }
-  visit(tree);
+  await visit(tree);
   return content;
 }
 
@@ -210,9 +340,11 @@ async function markdownToPdf(markdown, options = {}) {
   invariant(typeof markdown === "string", "markdownToPdf: markdown must be a string");
   options.onProgress?.("parse");
   const { tree } = await parseMarkdown(markdown);
+  console.log("tree", tree);
   options.onProgress?.("layout");
-  const pdfContent = mapRemarkToPdfContent(tree);
+  const pdfContent = await mapRemarkToPdfContent(tree, { imageResolver: options.imageResolver });
   const docDefinition = buildDocDefinition(pdfContent, options);
+  console.log("pdfContent", pdfContent);
   options.onProgress?.("emit");
   const pdfMakeAny = options.pdfMakeInstance ?? await import("pdfmake/build/pdfmake.js");
   const pdfMakeResolved = pdfMakeAny.default ?? pdfMakeAny;
