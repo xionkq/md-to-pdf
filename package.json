@@ -1,0 +1,55 @@
+{
+  "name": "md-to-pdf",
+  "version": "0.1.0",
+  "description": "Markdown to PDF (text-preserving) for browsers, TypeScript, framework-agnostic, Vue-ready.",
+  "homepage": "https://github.com/xionkq/md-to-pdf#readme",
+  "bugs": {
+    "url": "https://github.com/xionkq/md-to-pdf/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xionkq/md-to-pdf.git"
+  },
+  "license": "MIT",
+  "author": "",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "unpkg": "dist/index.global.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup src/index.ts --dts --format esm,cjs,iife --global-name MdToPdf --clean",
+    "dev": "tsup src/index.ts --watch --dts --format esm,cjs,iife --global-name MdToPdf",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "echo 'no linter configured'"
+  },
+  "keywords": [
+    "markdown",
+    "pdf",
+    "browser",
+    "typescript",
+    "vue",
+    "pdfmake",
+    "remark"
+  ],
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.4.0",
+    "vitest": "^1.5.0"
+  },
+  "dependencies": {
+    "pdfmake": "^0.2.10",
+    "remark-gfm": "^4.0.0",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.4"
+  }
+}
