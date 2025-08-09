@@ -1,9 +1,9 @@
 import type { Processor } from 'unified';
 
-export interface ParseResult<T = any> {
-  tree: T;
-}
+// 解析结果：返回 remark AST。暂不在此处做运行期 transform，保持解析职责单一。
+export interface ParseResult<T = any> { tree: T }
 
+// 缓存 unified 处理器，避免多次初始化插件
 let cachedProcessor: Processor | null = null;
 
 async function getProcessor(): Promise<Processor> {
@@ -17,6 +17,7 @@ async function getProcessor(): Promise<Processor> {
   return cachedProcessor;
 }
 
+// 解析 Markdown 字符串为 AST（支持 GFM：表格、任务列表等）
 export async function parseMarkdown(markdown: string): Promise<ParseResult> {
   const processor = await getProcessor();
   const tree = processor.parse(markdown);

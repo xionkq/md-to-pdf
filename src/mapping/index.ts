@@ -1,16 +1,16 @@
-/* remark AST → pdfmake content mapping (expanded) */
+/* remark AST → pdfmake 内容映射（支持嵌套/任务列表/表格/代码块/图片） */
 
 export type PdfContent = any[];
 
 interface NodeBase { type: string; [key: string]: any }
 
-export interface MapContext {
-  imageResolver?: (src: string) => Promise<string>;
-}
+// 上下文：可注入图片解析器，用于将 URL 转为 dataURL 以便内嵌到 PDF
+export interface MapContext { imageResolver?: (src: string) => Promise<string> }
 
 export async function mapRemarkToPdfContent(tree: NodeBase, ctx: MapContext = {}): Promise<PdfContent> {
   const content: PdfContent = [];
 
+  // 提取一组子节点中的纯文本（用于简单单元格/标题等场景）
   function textFromChildren(children: any[]): string {
     let acc = '';
     for (const ch of children || []) {
@@ -129,6 +129,7 @@ export async function mapRemarkToPdfContent(tree: NodeBase, ctx: MapContext = {}
     }
   }
 
+  // 构建 pdfmake 列表对象，支持嵌套列表及列表项中的复合块
   async function buildListObject(listNode: any): Promise<any> {
     const items: any[] = [];
     for (const li of listNode.children || []) {
@@ -175,6 +176,7 @@ export async function mapRemarkToPdfContent(tree: NodeBase, ctx: MapContext = {}
     return listNode.ordered ? { ol: items } : { ul: items };
   }
 
+  // 构建表格（将首行加粗；对齐仅在 center/right 时设置，left 使用默认）
   function buildTable(node: any): any {
     const rows: any[] = [];
     const aligns: (string | null)[] = node.align || [];

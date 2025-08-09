@@ -1,5 +1,6 @@
 import type { MarkdownToPdfOptions, FontResource } from '../index';
 
+// 将 ArrayBuffer/base64 统一转为 base64 字符串，以便写入 pdfmake vfs
 function toBase64(input: ArrayBuffer | string): string {
   if (typeof input === 'string') return input;
   const bytes = new Uint8Array(input);
@@ -9,6 +10,7 @@ function toBase64(input: ArrayBuffer | string): string {
   return typeof btoa !== 'undefined' ? btoa(binary) : Buffer.from(binary, 'binary').toString('base64');
 }
 
+// 将 FontResource 转为 pdfmake 需要的 vfs 映射（文件名 → base64）
 function buildVfsForFont(resource: FontResource): Record<string, string> {
   const baseName = resource.name;
   const vfs: Record<string, string> = {};
@@ -20,6 +22,7 @@ function buildVfsForFont(resource: FontResource): Record<string, string> {
   return vfs;
 }
 
+// 生成 pdfmake 的 fonts 定义（逻辑名 → 各字重文件名）
 function buildFontsDefinition(resources: FontResource[]): Record<string, any> {
   const def: Record<string, any> = {};
   for (const r of resources) {
@@ -39,6 +42,7 @@ export interface RegisteredFonts {
 }
 
 export function registerFonts(pdfMakeRuntime: any, options: MarkdownToPdfOptions): RegisteredFonts | null {
+  // 若调用方未提供字体，则不进行注册
   const fonts = options.fonts ?? [];
   if (!fonts.length) return null;
 

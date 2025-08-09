@@ -5,6 +5,13 @@ import { buildDocDefinition } from './pdf/builder';
 import { registerFonts } from './pdf/fonts';
 import { loadDefaultCjkFont } from './pdf/defaultCjk';
 
+/**
+ * 核心导出：对外暴露的类型与 API。该文件串联解析、映射与 pdfmake 生成流程。
+ * 设计目标：
+ * - 仅在需要时懒加载第三方库，尽量减小初始包体与首屏成本
+ * - 保持浏览器端可用（不依赖 Node 特性），但测试中允许注入 stub 的 pdfMake 实例
+ */
+
 export type PageSize = 'A4' | 'A3' | 'Letter' | { width: number; height: number };
 
 export interface FontResource {
@@ -50,21 +57,26 @@ function invariant(condition: unknown, message: string): asserts condition {
 }
 
 export async function markdownToPdf(markdown: string, options: MarkdownToPdfOptions = {}): Promise<MarkdownPdfResult> {
+  // 仅在浏览器环境运行，避免 SSR/Node 环境下误用
   invariant(typeof window !== 'undefined' && typeof document !== 'undefined', 'markdownToPdf: must run in browser environment');
   invariant(typeof markdown === 'string', 'markdownToPdf: markdown must be a string');
 
   options.onProgress?.('parse');
+  // 解析 Markdown → remark AST（含 GFM 扩展）
   const { tree } = await parseMarkdown(markdown);
   console.log('tree', tree);
   options.onProgress?.('layout');
 
+  // 将 remark AST 映射为 pdfmake 的内容结构（支持嵌套列表/表格/图片）
   const pdfContent = await mapRemarkToPdfContent(tree as any, { imageResolver: options.imageResolver });
+  // 生成基础文档定义（页面尺寸、边距、样式、页眉/页脚）
   const docDefinition = buildDocDefinition(pdfContent, options);
 
   console.log('pdfContent', pdfContent);
 
   // Lazy import pdfmake (browser build) and create PDF
   options.onProgress?.('emit');
+  // 懒加载 pdfmake，或在测试中注入自定义实例
   const pdfMakeAny: any = options.pdfMakeInstance ?? (await import('pdfmake/build/pdfmake.js'));
   const pdfMakeResolved: any = (pdfMakeAny as any).default ?? pdfMakeAny;
   // Ensure global for side-effect vfs registration
@@ -82,6 +94,7 @@ export async function markdownToPdf(markdown: string, options: MarkdownToPdfOpti
 
   // If no fonts provided and text likely contains CJK, try to auto-load a default CJK font
   if (!registered) {
+    // 基于字符范围的粗略检测（含 CJK 与假名），若命中则尝试加载默认中文字体
     const hasCjk = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/.test(markdown);
     if (hasCjk) {
       try {
@@ -90,7 +103,7 @@ export async function markdownToPdf(markdown: string, options: MarkdownToPdfOpti
         (docDefinition as any).fonts = { ...(docDefinition as any).fonts, ...(registered?.fontsDef || {}) };
         (docDefinition as any).defaultStyle = { ...(docDefinition as any).defaultStyle, font: cjkFont.name };
       } catch (e) {
-        // fallback silently if network fails
+        // 网络失败时静默降级为默认拉丁字体
       }
     }
   }
@@ -105,7 +118,7 @@ export async function markdownToPdf(markdown: string, options: MarkdownToPdfOpti
     try {
       const runtime: any = pdfMakeResolved;
       const pdfDoc = runtime.createPdf(docDefinition);
-      // Prefer getBuffer for broader compatibility in test/Node-like environments
+      // 测试环境中优先走 getBuffer，兼容性更好；浏览器中仍返回 Blob
       pdfDoc.getBuffer((buffer: ArrayBuffer) => {
         const uint8 = new Uint8Array(buffer as any);
         const blob = new Blob([uint8], { type: 'application/pdf' });
