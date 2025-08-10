@@ -43,6 +43,7 @@ async function onDownload() {
   await downloadPdf(markdown.value, 'example-cn.pdf', {
     fonts: fontRes.value ? [fontRes.value] : undefined,
     defaultFont: fontRes.value ? 'UserFont' : undefined,
+    enableHtml: true,
   });
 }
 

@@ -1,3 +1,9 @@
+/**
+ * 核心导出：对外暴露的类型与 API。该文件串联解析、映射与 pdfmake 生成流程。
+ * 设计目标：
+ * - 仅在需要时懒加载第三方库，尽量减小初始包体与首屏成本
+ * - 保持浏览器端可用（不依赖 Node 特性），但测试中允许注入 stub 的 pdfMake 实例
+ */
 type PageSize = 'A4' | 'A3' | 'Letter' | {
     width: number;
     height: number;

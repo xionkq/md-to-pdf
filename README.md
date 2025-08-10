@@ -40,3 +40,10 @@ await downloadPdf('# 标题\n\n这是一段中文文本', 'cn.pdf', {
 ```
 
 
+### 路线图（下一步）
+
+- HAST 嵌套完善：覆盖更多列表/表格/代码/引用等混排与嵌套
+- 默认样式向 GitHub Markdown 靠拢（blockquote、code、table 等）
+- 受限样式映射：解析 HTML 行内 style 白名单并映射到 pdfmake
+- 测试补充：嵌套、样式、空白处理一致性
+

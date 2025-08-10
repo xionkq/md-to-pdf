@@ -129,9 +129,29 @@
   - v1.x：目录生成、内部锚点、代码高亮（shiki）
   - v2：数学公式（KaTeX）、更强分页控制、可选服务端渲染适配
 
-- **已知限制**
-  - 复杂排版（多栏/环绕）不在 v1
-  - CJK 字体体积较大，建议使用子集或业务方 CDN 按需加载
-  - 图片跨域需业务侧处理 CORS
+ - **已知限制**
+   - 复杂排版（多栏/环绕）不在 v1
+   - CJK 字体体积较大，建议使用子集或业务方 CDN 按需加载
+   - 图片跨域需业务侧处理 CORS
 
+---
+
+### 下一步计划（v0.2.x）
+
+- 嵌套 HTML（HAST）完善
+  - 覆盖更多标签嵌套场景：列表项内 `table/blockquote/pre/code/hr/img` 与行内/块级混排；表格内的段内换行 `<br>` 等
+  - 更健壮的空白折叠策略：忽略根级空白文本节点、列表项开头的换行，避免额外空行
+
+- 默认样式对齐 GitHub Markdown
+  - 段落/标题间距、`<blockquote>` 左边框、代码块背景与内边距、`<table>` 行高/表头背景/间隔线、链接颜色/下划线
+  - 通过 `theme` 可覆盖，默认主题尽量贴近 GitHub 渲染
+
+- 受限样式映射（HTML）
+  - 行内 `style` 白名单解析与映射：`font-weight/font-style/text-decoration/color/background-color/text-align`、块级 `margin*`、图片 `width/height`
+  - 严格过滤危险属性与值（`position/float/display/transform/filter/url()` 等），并限制单位与范围
+
+- 测试用例补充
+  - HAST 嵌套：列表内表格/代码块/引用、表格内 `<br>`、标题/段落/表格混排
+  - 样式白名单：允许属性生效、越权样式被忽略
+  - 空白处理：启用 HTML 前后渲染一致性（避免意外空行）
 

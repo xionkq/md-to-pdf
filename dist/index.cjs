@@ -5,6 +5,9 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
@@ -27,6 +30,71 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
+// src/utils/sanitize.ts
+var sanitize_exports = {};
+__export(sanitize_exports, {
+  buildSanitizeSchema: () => buildSanitizeSchema
+});
+function buildSanitizeSchema(defaultSchema, opts = {}) {
+  const schema = deepClone(defaultSchema || {});
+  if (opts.allowedTags && opts.allowedTags.length) {
+    const set = /* @__PURE__ */ new Set([...schema.tagNames || []]);
+    for (const t of opts.allowedTags) set.add(t);
+    schema.tagNames = Array.from(set);
+  }
+  if (opts.allowedAttributes) {
+    schema.attributes = schema.attributes || {};
+    for (const tag of Object.keys(opts.allowedAttributes)) {
+      const current = schema.attributes[tag] || [];
+      const set = new Set(current);
+      for (const attr of opts.allowedAttributes[tag] || []) set.add(attr);
+      schema.attributes[tag] = Array.from(set);
+    }
+  }
+  enableStyleAttribute(schema);
+  if (opts.allowedSchemes && opts.allowedSchemes.length) {
+    const protoWrap = (name) => [{ type: "protocol", protocol: opts.allowedSchemes }, name];
+    const aAttrs = schema.attributes && schema.attributes["a"] || [];
+    if (!includesAttr(aAttrs, "href")) aAttrs.push("href");
+    schema.attributes = schema.attributes || {};
+    schema.attributes["a"] = uniqueAttrs(aAttrs);
+    const imgAttrs = schema.attributes && schema.attributes["img"] || [];
+    if (!includesAttr(imgAttrs, "src")) imgAttrs.push("src");
+    schema.attributes["img"] = uniqueAttrs(imgAttrs);
+  }
+  return schema;
+}
+function enableStyleAttribute(schema) {
+  schema.attributes = schema.attributes || {};
+  const globalAttrs = schema.attributes["*"] || [];
+  if (!includesAttr(globalAttrs, "style")) globalAttrs.push("style");
+  schema.attributes["*"] = uniqueAttrs(globalAttrs);
+}
+function includesAttr(arr, name) {
+  return (arr || []).some((x) => typeof x === "string" ? x === name : x && x[0] ? x[0] === name : false);
+}
+function uniqueAttrs(arr) {
+  const flat = (arr || []).map((x) => typeof x === "string" ? x : x);
+  const seen = /* @__PURE__ */ new Set();
+  const out = [];
+  for (const item of flat) {
+    const key = typeof item === "string" ? item : JSON.stringify(item);
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(item);
+    }
+  }
+  return out;
+}
+function deepClone(obj) {
+  return obj ? JSON.parse(JSON.stringify(obj)) : obj;
+}
+var init_sanitize = __esm({
+  "src/utils/sanitize.ts"() {
+    "use strict";
+  }
+});
+
 // src/index.ts
 var index_exports = {};
 __export(index_exports, {
@@ -37,21 +105,58 @@ __export(index_exports, {
 module.exports = __toCommonJS(index_exports);
 
 // src/core/parseMarkdown.ts
-var cachedProcessor = null;
-async function getProcessor() {
-  if (cachedProcessor) return cachedProcessor;
+var cachedMdProcessor = null;
+var cachedHtmlProcessor = null;
+async function getMdProcessor() {
+  if (cachedMdProcessor) return cachedMdProcessor;
   const [{ unified }, { default: remarkParse }, { default: remarkGfm }] = await Promise.all([
     import("unified"),
     import("remark-parse"),
     import("remark-gfm")
   ]);
-  cachedProcessor = unified().use(remarkParse).use(remarkGfm);
-  return cachedProcessor;
+  cachedMdProcessor = unified().use(remarkParse).use(remarkGfm);
+  return cachedMdProcessor;
 }
-async function parseMarkdown(markdown) {
-  const processor = await getProcessor();
-  const tree = processor.parse(markdown);
-  return { tree };
+async function getHtmlProcessor(options = {}) {
+  if (cachedHtmlProcessor) return cachedHtmlProcessor;
+  const [
+    { unified },
+    { default: remarkParse },
+    { default: remarkGfm },
+    { default: remarkRehype },
+    { default: rehypeRaw },
+    rehypeSanitizeModule
+  ] = await Promise.all([
+    import("unified"),
+    import("remark-parse"),
+    import("remark-gfm"),
+    import("remark-rehype"),
+    import("rehype-raw"),
+    import("rehype-sanitize")
+  ]);
+  const rehypeSanitize = rehypeSanitizeModule.default ?? rehypeSanitizeModule;
+  const defaultSchema = rehypeSanitizeModule.defaultSchema ?? rehypeSanitizeModule.schema;
+  const { buildSanitizeSchema: buildSanitizeSchema2 } = await Promise.resolve().then(() => (init_sanitize(), sanitize_exports));
+  const schema = buildSanitizeSchema2(defaultSchema, {
+    allowedTags: options.sanitize?.allowedTags,
+    allowedAttributes: options.sanitize?.allowedAttributes,
+    allowedStyles: options.sanitize?.allowedStyles,
+    allowedSchemes: options.sanitize?.allowedSchemes
+  });
+  cachedHtmlProcessor = unified().use(remarkParse).use(remarkGfm).use(remarkRehype, { allowDangerousHtml: true }).use(rehypeRaw).use(rehypeSanitize, schema);
+  return cachedHtmlProcessor;
+}
+async function parseMarkdown(markdown, htmlOptions = {}) {
+  if (!htmlOptions.enableHtml) {
+    const processor2 = await getMdProcessor();
+    const tree2 = processor2.parse(markdown);
+    return { tree: tree2, flavor: "mdast" };
+  }
+  const processor = await getHtmlProcessor(htmlOptions);
+  const mdast = (await getMdProcessor()).parse(markdown);
+  console.log("mdast", mdast);
+  const tree = await processor.run(mdast);
+  return { tree, flavor: "hast" };
 }
 
 // src/mapping/index.ts
@@ -369,6 +474,258 @@ async function loadDefaultCjkFont(options = {}) {
   return buildFontResourceFromUrls(name, urls, options.requestInit);
 }
 
+// src/mapping/hast.ts
+async function mapHastToPdfContent(tree, ctx = {}) {
+  const content = [];
+  function textFromChildren(children) {
+    let acc = "";
+    for (const ch of children || []) {
+      if (ch.type === "text") acc += ch.value ?? "";
+      else if (ch.children) acc += textFromChildren(ch.children);
+    }
+    return acc;
+  }
+  function isInlineTag(tagName) {
+    const t = (tagName || "").toLowerCase();
+    return t === "a" || t === "strong" || t === "b" || t === "em" || t === "i" || t === "s" || t === "strike" || t === "del" || t === "u" || t === "code" || t === "span" || t === "br" || t === "img";
+  }
+  function inline(nodes) {
+    const parts = [];
+    for (const n of nodes || []) {
+      if (n.type === "text") {
+        parts.push(n.value ?? "");
+      } else if (n.type === "element") {
+        const tag = (n.tagName || "").toLowerCase();
+        if (tag === "strong" || tag === "b") parts.push({ text: textFromChildren(n.children || []), bold: true });
+        else if (tag === "em" || tag === "i") parts.push({ text: textFromChildren(n.children || []), italics: true });
+        else if (tag === "s" || tag === "strike" || tag === "del") parts.push({ text: textFromChildren(n.children || []), decoration: "lineThrough" });
+        else if (tag === "u") parts.push({ text: textFromChildren(n.children || []), decoration: "underline" });
+        else if (tag === "code") parts.push({ text: textFromChildren(n.children || []), style: "code" });
+        else if (tag === "a") parts.push({ text: textFromChildren(n.children || []), link: n.properties?.href, style: "link" });
+        else if (tag === "br") parts.push("\n");
+        else if (tag === "img") {
+          const src = n.properties?.src;
+          const alt = n.properties?.alt || "";
+          parts.push({ text: alt });
+        } else if (n.children) {
+          const inner = textFromChildren(n.children || []);
+          if (inner) parts.push(inner);
+        }
+      }
+    }
+    return parts;
+  }
+  function buildTableElement(node) {
+    const rows = [];
+    const sections = (node.children || []).filter((c) => c.type === "element" && (c.tagName === "thead" || c.tagName === "tbody"));
+    const trNodes = sections.length ? sections.flatMap((s) => (s.children || []).filter((x) => x.type === "element" && x.tagName === "tr")) : (node.children || []).filter((x) => x.type === "element" && x.tagName === "tr");
+    for (const tr of trNodes) {
+      const cells = [];
+      for (const cell of (tr.children || []).filter((c) => c.type === "element")) {
+        const txt = textFromChildren(cell.children || []);
+        const isTh = cell.tagName === "th";
+        const cellDef = { text: txt };
+        if (isTh) cellDef.bold = true;
+        cells.push(cellDef);
+      }
+      if (cells.length) rows.push(cells);
+    }
+    return { table: { body: rows }, layout: "lightHorizontalLines", margin: [0, 4, 0, 8] };
+  }
+  async function visit(node) {
+    if (node.type === "root") {
+      for (const child of node.children || []) await visit(child);
+      return;
+    }
+    if (node.type !== "element") return;
+    const tag = (node.tagName || "").toLowerCase();
+    switch (tag) {
+      case "h1":
+      case "h2":
+      case "h3":
+      case "h4":
+      case "h5":
+      case "h6": {
+        const level = Number(tag[1]);
+        const txt = textFromChildren(node.children || []);
+        content.push({ text: txt, style: `h${level}` });
+        break;
+      }
+      case "p":
+      case "div": {
+        const children = node.children || [];
+        const hasImage = !!children.find((c) => c.type === "element" && c.tagName?.toLowerCase() === "img");
+        if (hasImage && ctx.imageResolver) {
+          let runs = [];
+          const flush = () => {
+            if (runs.length) {
+              content.push({ text: runs, style: "paragraph" });
+              runs = [];
+            }
+          };
+          for (const ch of children) {
+            if (ch.type === "element" && ch.tagName?.toLowerCase() === "img") {
+              flush();
+              const src = ch.properties?.src;
+              const alt = ch.properties?.alt || "";
+              try {
+                const dataUrl = await ctx.imageResolver(src);
+                content.push({ image: dataUrl, margin: [0, 4, 0, 8] });
+              } catch {
+                if (alt) runs.push({ text: alt, italics: true, color: "#666" });
+              }
+            } else {
+              runs.push(...inline([ch]));
+            }
+          }
+          flush();
+        } else {
+          content.push({ text: inline(children), style: "paragraph" });
+        }
+        break;
+      }
+      case "br":
+        content.push({ text: ["\n"], style: "paragraph" });
+        break;
+      case "hr":
+        content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1 }] });
+        break;
+      case "blockquote": {
+        const inner = [];
+        for (const n of node.children || []) {
+          if (n.type === "element" && (n.tagName === "p" || n.tagName === "div")) inner.push({ text: inline(n.children || []), margin: [0, 2, 0, 2] });
+          else if (n.type === "text") {
+            const val = String(n.value ?? "");
+            if (val.trim()) inner.push({ text: val, margin: [0, 2, 0, 2] });
+          }
+        }
+        content.push({ stack: inner, margin: [8, 4, 0, 8], style: "paragraph" });
+        break;
+      }
+      case "pre": {
+        const txt = textFromChildren(node.children || []);
+        content.push({ text: txt, style: "code", preserveLeadingSpaces: true, margin: [0, 4, 0, 8] });
+        break;
+      }
+      case "code": {
+        const isBlock = !node.children?.some((c) => c.type === "text" && (c.value || "").includes("\n")) ? false : true;
+        const txt = textFromChildren(node.children || []);
+        content.push({ text: txt, style: "code", preserveLeadingSpaces: isBlock, margin: [0, 4, 0, 8] });
+        break;
+      }
+      case "ul":
+      case "ol": {
+        const items = [];
+        for (const li of (node.children || []).filter((c) => c.type === "element" && c.tagName?.toLowerCase() === "li")) {
+          const blocks = [];
+          let runs = [];
+          const flushRuns = () => {
+            if (runs.length) {
+              blocks.push({ text: runs, style: "paragraph", margin: [0, 2, 0, 2] });
+              runs = [];
+            }
+          };
+          const appendInlineSegments = (segs) => {
+            for (const seg of segs || []) {
+              if (typeof seg === "string") {
+                if (seg === "\n") {
+                  if (runs.length) runs.push(seg);
+                } else {
+                  const s = runs.length === 0 ? seg.replace(/^[\s\r\n]+/, "") : seg;
+                  if (s) runs.push(s);
+                }
+              } else if (seg && typeof seg === "object") {
+                runs.push(seg);
+              }
+            }
+          };
+          for (const child of li.children || []) {
+            if (child.type === "text") {
+              let val = String(child.value ?? "");
+              if (runs.length === 0) val = val.replace(/^[\s\r\n]+/, "");
+              if (val) runs.push(val);
+              continue;
+            }
+            if (child.type === "element") {
+              const tag2 = (child.tagName || "").toLowerCase();
+              if (isInlineTag(tag2)) {
+                appendInlineSegments(inline([child]));
+                continue;
+              }
+              if (tag2 === "p" || tag2 === "div") {
+                flushRuns();
+                const segs = inline(child.children || []);
+                if (segs.length && typeof segs[0] === "string") segs[0] = segs[0].replace(/^\n+/, "");
+                blocks.push({ text: segs, style: "paragraph", margin: [0, 2, 0, 2] });
+                continue;
+              }
+              flushRuns();
+              if (tag2 === "ul" || tag2 === "ol") {
+                const nested = await mapHastToPdfContent({ type: "root", children: [child] }, ctx);
+                blocks.push(...nested);
+              } else if (tag2 === "img") {
+                const src = child.properties?.src;
+                const alt = child.properties?.alt || "";
+                if (ctx.imageResolver) {
+                  try {
+                    const dataUrl = await ctx.imageResolver(src);
+                    blocks.push({ image: dataUrl, margin: [0, 4, 0, 8] });
+                  } catch {
+                    if (alt) blocks.push({ text: alt, italics: true, color: "#666" });
+                  }
+                } else if (alt) {
+                  blocks.push({ text: alt, italics: true, color: "#666" });
+                }
+              } else if (tag2 === "blockquote") {
+                const nested = await mapHastToPdfContent({ type: "root", children: [child] }, ctx);
+                blocks.push({ stack: nested, margin: [8, 4, 0, 8], style: "paragraph" });
+              } else if (tag2 === "table") {
+                blocks.push(buildTableElement(child));
+              } else if (tag2 === "pre" || tag2 === "code") {
+                const txt = textFromChildren(child.children || []);
+                blocks.push({ text: txt, style: "code", preserveLeadingSpaces: true, margin: [0, 4, 0, 8] });
+              } else if (tag2 === "hr") {
+                blocks.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1 }] });
+              }
+            }
+          }
+          flushRuns();
+          items.push(blocks.length === 1 ? blocks[0] : { stack: blocks });
+        }
+        content.push(tag === "ol" ? { ol: items } : { ul: items });
+        break;
+      }
+      case "table": {
+        content.push(buildTableElement(node));
+        break;
+      }
+      case "img": {
+        const src = node.properties?.src;
+        const alt = node.properties?.alt || "";
+        if (ctx.imageResolver) {
+          try {
+            const dataUrl = await ctx.imageResolver(src);
+            content.push({ image: dataUrl, margin: [0, 4, 0, 8] });
+          } catch {
+            if (alt) content.push({ text: alt, italics: true, color: "#666" });
+          }
+        } else if (alt) {
+          content.push({ text: alt, italics: true, color: "#666" });
+        }
+        break;
+      }
+      default: {
+        if (node.children && node.children.length) {
+          const txt = textFromChildren(node.children);
+          if (txt) content.push({ text: txt, style: "paragraph" });
+        }
+      }
+    }
+  }
+  await visit(tree);
+  return content;
+}
+
 // src/index.ts
 function invariant(condition, message) {
   if (!condition) throw new Error(message);
@@ -377,10 +734,18 @@ async function markdownToPdf(markdown, options = {}) {
   invariant(typeof window !== "undefined" && typeof document !== "undefined", "markdownToPdf: must run in browser environment");
   invariant(typeof markdown === "string", "markdownToPdf: markdown must be a string");
   options.onProgress?.("parse");
-  const { tree } = await parseMarkdown(markdown);
+  const { tree, flavor } = await parseMarkdown(markdown, {
+    enableHtml: options.enableHtml,
+    sanitize: options.html
+  });
   console.log("tree", tree);
   options.onProgress?.("layout");
-  const pdfContent = await mapRemarkToPdfContent(tree, { imageResolver: options.imageResolver });
+  let pdfContent;
+  if (flavor === "mdast") {
+    pdfContent = await mapRemarkToPdfContent(tree, { imageResolver: options.imageResolver });
+  } else {
+    pdfContent = await mapHastToPdfContent(tree, { imageResolver: options.imageResolver });
+  }
   const docDefinition = buildDocDefinition(pdfContent, options);
   console.log("pdfContent", pdfContent);
   options.onProgress?.("emit");

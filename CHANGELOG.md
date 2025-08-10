@@ -17,3 +17,15 @@
 2) PDF 样式尽可能向 GitHub Markdown 样式靠拢（标题/段落间距、代码块配色、表格线与背景等）
 
 
+## 0.2.0 (unreleased)
+
+- 新增：启用 `enableHtml` 时支持 Markdown 内嵌 HTML，管道：remark → rehype（raw + sanitize）
+- 新增：HAST → pdfmake 基础映射（标题、段落、列表、引用、代码块、表格、图片、链接、br/hr）
+- 改进：列表项内的行内元素与 `<br>` 聚合为同一段，避免额外换行；支持列表项内嵌套表格/代码/引用
+- 安全：引入 `rehype-sanitize`，提供 `src/utils/sanitize.ts` 以合并白名单配置
+- 计划：
+  - 覆盖更多标签嵌套（表格内段落/换行、复杂混排）
+  - 默认样式对齐 GitHub Markdown（blockquote 样式、代码块、表格等）
+  - 支持受限样式映射（行内 style 白名单 → pdfmake 样式）
+  - 补充测试：HAST 嵌套、样式白名单、空白处理一致性
+

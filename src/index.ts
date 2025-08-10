@@ -4,6 +4,7 @@ import { mapRemarkToPdfContent } from './mapping';
 import { buildDocDefinition } from './pdf/builder';
 import { registerFonts } from './pdf/fonts';
 import { loadDefaultCjkFont } from './pdf/defaultCjk';
+import { mapHastToPdfContent } from './mapping/hast';
 
 /**
  * 核心导出：对外暴露的类型与 API。该文件串联解析、映射与 pdfmake 生成流程。
@@ -63,12 +64,20 @@ export async function markdownToPdf(markdown: string, options: MarkdownToPdfOpti
 
   options.onProgress?.('parse');
   // 解析 Markdown → remark AST（含 GFM 扩展）
-  const { tree } = await parseMarkdown(markdown);
+  const { tree, flavor } = await parseMarkdown(markdown, {
+    enableHtml: options.enableHtml,
+    sanitize: (options as any).html
+  } as any);
   console.log('tree', tree);
   options.onProgress?.('layout');
 
-  // 将 remark AST 映射为 pdfmake 的内容结构（支持嵌套列表/表格/图片）
-  const pdfContent = await mapRemarkToPdfContent(tree as any, { imageResolver: options.imageResolver });
+  // 将 AST 映射为 pdfmake 的内容结构
+  let pdfContent: any[];
+  if (flavor === 'mdast') {
+    pdfContent = await mapRemarkToPdfContent(tree as any, { imageResolver: options.imageResolver });
+  } else {
+    pdfContent = await mapHastToPdfContent(tree as any, { imageResolver: options.imageResolver });
+  }
   // 生成基础文档定义（页面尺寸、边距、样式、页眉/页脚）
   const docDefinition = buildDocDefinition(pdfContent, options);
 
