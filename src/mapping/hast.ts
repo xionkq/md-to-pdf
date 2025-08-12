@@ -13,6 +13,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
     let acc = '';
     for (const ch of children || []) {
       if (ch.type === 'text') acc += ch.value ?? '';
+      else if (ch.type === 'element' && ch.tagName?.toLowerCase() === 'br') acc += '\n';
       else if (ch.children) acc += textFromChildren(ch.children);
     }
     return acc;
@@ -64,11 +65,61 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
     for (const tr of trNodes) {
       const cells: any[] = [];
       for (const cell of (tr.children || []).filter((c: any) => c.type === 'element')) {
-        const txt = textFromChildren(cell.children || []);
         const isTh = cell.tagName === 'th';
-        const cellDef: any = { text: txt };
-        if (isTh) cellDef.bold = true;
-        cells.push(cellDef);
+        let cellContent: any;
+        
+        // 判断是否有需要特殊处理的复杂块级元素
+        const hasBlockElements = (cell.children || []).some((c: any) => 
+          c.type === 'element' && ['ul', 'ol', 'p', 'div', 'blockquote', 'pre'].includes(c.tagName?.toLowerCase())
+        );
+        
+        if (hasBlockElements) {
+          // 包含块级元素：特殊处理，保持一定的结构信息
+          const parts: string[] = [];
+          for (const child of cell.children || []) {
+            if (child.type === 'element') {
+              const tag = child.tagName?.toLowerCase();
+              if (tag === 'ul' || tag === 'ol') {
+                // 列表：提取列表项并用换行分隔
+                const listItems = (child.children || [])
+                  .filter((li: any) => li.type === 'element' && li.tagName?.toLowerCase() === 'li')
+                  .map((li: any) => '• ' + textFromChildren(li.children || []).trim())
+                  .join('\n');
+                if (listItems) parts.push(listItems);
+              } else if (tag === 'p' || tag === 'div') {
+                const txt = textFromChildren(child.children || []).trim();
+                if (txt) parts.push(txt);
+              } else {
+                const txt = textFromChildren([child]).trim();
+                if (txt) parts.push(txt);
+              }
+            } else if (child.type === 'text') {
+              const txt = String(child.value || '').trim();
+              if (txt) parts.push(txt);
+            }
+          }
+          cellContent = { text: parts.join('\n') || '' };
+        } else {
+          // 简单内容或行内元素：使用 inline 处理并清理空白
+          const inlineContent = inline(cell.children || []);
+          const cleanedContent = inlineContent.filter(item => {
+            if (typeof item === 'string') {
+              return item.trim().length > 0;
+            }
+            return true;
+          });
+          // 清理首尾的纯空白字符串
+          while (cleanedContent.length > 0 && typeof cleanedContent[0] === 'string' && !cleanedContent[0].trim()) {
+            cleanedContent.shift();
+          }
+          while (cleanedContent.length > 0 && typeof cleanedContent[cleanedContent.length - 1] === 'string' && !cleanedContent[cleanedContent.length - 1].trim()) {
+            cleanedContent.pop();
+          }
+          cellContent = { text: cleanedContent.length > 0 ? cleanedContent : '' };
+        }
+        
+        if (isTh) cellContent.bold = true;
+        cells.push(cellContent);
       }
       if (cells.length) rows.push(cells);
     }
@@ -101,7 +152,13 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
         const hasImage = !!children.find((c: any) => c.type === 'element' && c.tagName?.toLowerCase() === 'img');
         if (hasImage && ctx.imageResolver) {
           let runs: any[] = [];
-          const flush = () => { if (runs.length) { content.push({ text: runs, style: 'paragraph' }); runs = []; } };
+          const flush = () => {
+            if (runs.length) {
+              const filteredRuns = runs.filter(r => typeof r !== 'string' || r.trim().length > 0);
+              if (filteredRuns.length) content.push({ text: filteredRuns, style: 'paragraph' });
+              runs = [];
+            }
+          };
           for (const ch of children) {
             if (ch.type === 'element' && ch.tagName?.toLowerCase() === 'img') {
               flush();
@@ -119,7 +176,11 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
           }
           flush();
         } else {
-          content.push({ text: inline(children), style: 'paragraph' });
+          const inlineContent = inline(children);
+          const filteredContent = inlineContent.filter(c => typeof c !== 'string' || c.trim().length > 0);
+          if (filteredContent.length) {
+            content.push({ text: filteredContent, style: 'paragraph' });
+          }
         }
         break;
       }
@@ -132,10 +193,11 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
       case 'blockquote': {
         const inner: any[] = [];
         for (const n of node.children || []) {
-          if (n.type === 'element' && (n.tagName === 'p' || n.tagName === 'div')) inner.push({ text: inline(n.children || []), margin: [0, 2, 0, 2] });
-          else if (n.type === 'text') {
-            const val = String(n.value ?? '');
-            if (val.trim()) inner.push({ text: val, margin: [0, 2, 0, 2] });
+          if (n.type === 'element' && (n.tagName === 'p' || n.tagName === 'div')) {
+            inner.push({ text: inline(n.children || []), margin: [0, 2, 0, 2] });
+          } else if (n.type === 'text') {
+            const val = String(n.value ?? '').trim();
+            if (val) inner.push({ text: val, margin: [0, 2, 0, 2] });
           }
         }
         content.push({ stack: inner, margin: [8, 4, 0, 8], style: 'paragraph' });
@@ -161,7 +223,20 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
           let runs: any[] = [];
           const flushRuns = () => {
             if (runs.length) {
-              blocks.push({ text: runs, style: 'paragraph', margin: [0, 2, 0, 2] });
+              // 过滤空内容和多余空白，清理连续的空白字符
+              let filteredRuns = runs.filter(r => {
+                if (typeof r === 'string') return r.trim().length > 0;
+                return true;
+              });
+              // 清理连续空格和换行
+              filteredRuns = filteredRuns.map(r => {
+                if (typeof r === 'string') return r.replace(/\s+/g, ' ').trim();
+                return r;
+              }).filter(r => typeof r !== 'string' || r.length > 0);
+              
+              if (filteredRuns.length) {
+                blocks.push({ text: filteredRuns, style: 'paragraph', margin: [0, 2, 0, 2] });
+              }
               runs = [];
             }
           };
@@ -183,8 +258,13 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
           for (const child of li.children || []) {
             if (child.type === 'text') {
               let val = String(child.value ?? '');
-              if (runs.length === 0) val = val.replace(/^[\s\r\n]+/, '');
-              if (val) runs.push(val);
+              // 只在列表项开头清理前导空白
+              if (runs.length === 0 && blocks.length === 0) {
+                val = val.replace(/^[\s\r\n]+/, '');
+              }
+              // 清理多余的连续空白，但保留单个空格
+              val = val.replace(/[\s\r\n]+/g, ' ');
+              if (val && val !== ' ') runs.push(val);
               continue;
             }
             if (child.type === 'element') {
@@ -197,9 +277,17 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                 // p/div 视作块：先合并当前行内，再输出该段落
                 flushRuns();
                 const segs = inline(child.children || []);
-                // 段落内部也避免首字符为换行
-                if (segs.length && typeof segs[0] === 'string') segs[0] = (segs[0] as string).replace(/^\n+/, '');
-                blocks.push({ text: segs, style: 'paragraph', margin: [0, 2, 0, 2] });
+                // 段落内部避免首尾空白和连续换行
+                const cleanedSegs = segs.filter(seg => {
+                  if (typeof seg === 'string') return seg.trim().length > 0;
+                  return true;
+                });
+                if (cleanedSegs.length && typeof cleanedSegs[0] === 'string') {
+                  cleanedSegs[0] = (cleanedSegs[0] as string).replace(/^[\n\s]+/, '').replace(/[\n\s]+$/, '');
+                }
+                if (cleanedSegs.length) {
+                  blocks.push({ text: cleanedSegs, style: 'paragraph', margin: [0, 2, 0, 2] });
+                }
                 continue;
               }
               // 其它块级元素：先冲刷当前行内，再单独处理
@@ -219,8 +307,17 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                   blocks.push({ text: alt, italics: true, color: '#666' });
                 }
               } else if (tag === 'blockquote') {
-                const nested = await mapHastToPdfContent({ type: 'root', children: [child] } as any, ctx);
-                blocks.push({ stack: nested, margin: [8, 4, 0, 8], style: 'paragraph' });
+                // 直接在这里处理 blockquote，避免递归调用导致的双层嵌套
+                const inner: any[] = [];
+                for (const n of child.children || []) {
+                  if (n.type === 'element' && (n.tagName === 'p' || n.tagName === 'div')) {
+                    inner.push({ text: inline(n.children || []), margin: [0, 2, 0, 2] });
+                  } else if (n.type === 'text') {
+                    const val = String(n.value ?? '').trim();
+                    if (val) inner.push({ text: val, margin: [0, 2, 0, 2] });
+                  }
+                }
+                blocks.push({ stack: inner, margin: [8, 4, 0, 8], style: 'paragraph' });
               } else if (tag === 'table') {
                 blocks.push(buildTableElement(child));
               } else if (tag === 'pre' || tag === 'code') {
@@ -232,7 +329,15 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
             }
           }
           flushRuns();
-          items.push(blocks.length === 1 ? blocks[0] : { stack: blocks });
+          // 优化列表项结构：单个块时直接使用，多个块时用 stack
+          if (blocks.length === 0) {
+            // 空列表项，添加空文本
+            items.push({ text: '', style: 'paragraph', margin: [0, 2, 0, 2] });
+          } else if (blocks.length === 1) {
+            items.push(blocks[0]);
+          } else {
+            items.push({ stack: blocks });
+          }
         }
         content.push(tag === 'ol' ? { ol: items } : { ul: items });
         break;
