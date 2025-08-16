@@ -42,6 +42,7 @@
   ],
   "devDependencies": {
     "@types/node": "^20.11.0",
+    "@types/pdfmake": "0.2.11",
     "tsup": "^8.0.1",
     "typescript": "^5.4.0",
     "vitest": "^1.5.0"

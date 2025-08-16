@@ -66,7 +66,7 @@ async function getHtmlProcessor(options: HtmlOptions = {}): Promise<Processor> {
     .use(remarkRehype as any, { allowDangerousHtml: true })
     .use(rehypeRaw as any)
     .use(rehypeSanitize as any, schema);
-  return cachedHtmlProcessor;
+  return cachedHtmlProcessor!;
 }
 
 // 解析 Markdown 字符串为 AST
