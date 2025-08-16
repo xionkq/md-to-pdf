@@ -4,13 +4,13 @@
  */
 
 export interface BorderLine {
-  type: 'line';
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  lineWidth: number;
-  lineColor?: string;
+  type: 'line'
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+  lineWidth: number
+  lineColor?: string
 }
 
 /**
@@ -27,11 +27,11 @@ export function createH1Border(pageWidth: number = 515): any {
         x2: pageWidth,
         y2: 0,
         lineWidth: 2,
-        lineColor: '#d1d9e0'
-      } as BorderLine
+        lineColor: '#d1d9e0',
+      } as BorderLine,
     ],
-    margin: [0, 8, 0, 0] // 顶部间距
-  };
+    margin: [0, 8, 0, 0], // 顶部间距
+  }
 }
 
 /**
@@ -48,11 +48,11 @@ export function createH2Border(pageWidth: number = 515): any {
         x2: pageWidth,
         y2: 0,
         lineWidth: 1,
-        lineColor: '#d1d9e0'
-      } as BorderLine
+        lineColor: '#d1d9e0',
+      } as BorderLine,
     ],
-    margin: [0, 8, 0, 0] // 顶部间距
-  };
+    margin: [0, 8, 0, 0], // 顶部间距
+  }
 }
 
 /**
@@ -69,12 +69,12 @@ export function createBlockquoteBorder(height: number = 20): any {
         x2: 0,
         y2: height,
         lineWidth: 4,
-        lineColor: '#d0d7de'
-      } as BorderLine
+        lineColor: '#d0d7de',
+      } as BorderLine,
     ],
     margin: [0, 0, 8, 0], // 右侧间距
-    width: 4
-  };
+    width: 4,
+  }
 }
 
 /**
@@ -83,31 +83,31 @@ export function createBlockquoteBorder(height: number = 20): any {
  */
 export function createTableLayout(): any {
   return {
-    hLineWidth: function(i: number, node: any) {
-      return 1;
+    hLineWidth: function (i: number, node: any) {
+      return 1
     },
-    vLineWidth: function(i: number, node: any) {
-      return 1;
+    vLineWidth: function (i: number, node: any) {
+      return 1
     },
-    hLineColor: function(i: number, node: any) {
-      return '#d1d9e0';
+    hLineColor: function (i: number, node: any) {
+      return '#d1d9e0'
     },
-    vLineColor: function(i: number, node: any) {
-      return '#d1d9e0';
+    vLineColor: function (i: number, node: any) {
+      return '#d1d9e0'
     },
-    paddingLeft: function(i: number, node: any) {
-      return 8;
+    paddingLeft: function (i: number, node: any) {
+      return 8
     },
-    paddingRight: function(i: number, node: any) {
-      return 8;
+    paddingRight: function (i: number, node: any) {
+      return 8
     },
-    paddingTop: function(i: number, node: any) {
-      return 6;
+    paddingTop: function (i: number, node: any) {
+      return 6
     },
-    paddingBottom: function(i: number, node: any) {
-      return 6;
-    }
-  };
+    paddingBottom: function (i: number, node: any) {
+      return 6
+    },
+  }
 }
 
 /**
@@ -118,11 +118,15 @@ export function createCodeBlockStyle(content: string): any {
   return {
     table: {
       widths: ['*'],
-      body: [[{
-        text: content,
-        style: 'codeBlock',
-        border: [false, false, false, false] // 禁用表格边框
-      }]]
+      body: [
+        [
+          {
+            text: content,
+            style: 'codeBlock',
+            border: [false, false, false, false], // 禁用表格边框
+          },
+        ],
+      ],
     },
     layout: {
       hLineWidth: () => 0,
@@ -130,8 +134,8 @@ export function createCodeBlockStyle(content: string): any {
       paddingLeft: () => 12,
       paddingRight: () => 12,
       paddingTop: () => 8,
-      paddingBottom: () => 8
+      paddingBottom: () => 8,
     },
-    margin: [0, 8, 0, 16]
-  };
+    margin: [0, 8, 0, 16],
+  }
 }

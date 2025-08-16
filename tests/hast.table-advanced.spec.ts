@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { parseMarkdown } from '../src/core/parseMarkdown';
-import { mapHastToPdfContent } from '../src/mapping/hast';
+import { describe, it, expect } from 'vitest'
+import { parseMarkdown } from '../src/core/parseMarkdown'
+import { mapHastToPdfContent } from '../src/mapping/hast'
 
 describe('HAST: advanced table scenarios', () => {
   it('表格单元格内包含列表', async () => {
@@ -25,20 +25,20 @@ describe('HAST: advanced table scenarios', () => {
     </td>
   </tr>
 </table>
-`;
-    const { tree } = await parseMarkdown(html, { enableHtml: true });
-    const content = await mapHastToPdfContent(tree as any);
-    
-    console.log('表格内列表测试结果:', JSON.stringify(content, null, 2));
-    
-    const table = content.find((c: any) => 'table' in c);
-    expect(table).toBeTruthy();
-    
+`
+    const { tree } = await parseMarkdown(html, { enableHtml: true })
+    const content = await mapHastToPdfContent(tree as any)
+
+    console.log('表格内列表测试结果:', JSON.stringify(content, null, 2))
+
+    const table = content.find((c: any) => 'table' in c)
+    expect(table).toBeTruthy()
+
     // 应该包含列表内容
-    const tableStr = JSON.stringify(table);
-    expect(tableStr).toContain('项目1');
-    expect(tableStr).toContain('步骤1');
-  });
+    const tableStr = JSON.stringify(table)
+    expect(tableStr).toContain('项目1')
+    expect(tableStr).toContain('步骤1')
+  })
 
   it('表格单元格内包含代码和链接', async () => {
     const html = `
@@ -56,20 +56,20 @@ describe('HAST: advanced table scenarios', () => {
     </td>
   </tr>
 </table>
-`;
-    const { tree } = await parseMarkdown(html, { enableHtml: true });
-    const content = await mapHastToPdfContent(tree as any);
-    
-    console.log('表格内代码链接测试结果:', JSON.stringify(content, null, 2));
-    
-    const table = content.find((c: any) => 'table' in c);
-    expect(table).toBeTruthy();
-    
-    const tableStr = JSON.stringify(table);
-    expect(tableStr).toContain('console.log');
-    expect(tableStr).toContain('示例链接');
-    expect(tableStr).toContain('https://example.com');
-  });
+`
+    const { tree } = await parseMarkdown(html, { enableHtml: true })
+    const content = await mapHastToPdfContent(tree as any)
+
+    console.log('表格内代码链接测试结果:', JSON.stringify(content, null, 2))
+
+    const table = content.find((c: any) => 'table' in c)
+    expect(table).toBeTruthy()
+
+    const tableStr = JSON.stringify(table)
+    expect(tableStr).toContain('console.log')
+    expect(tableStr).toContain('示例链接')
+    expect(tableStr).toContain('https://example.com')
+  })
 
   it('表格单元格内包含强调和格式化', async () => {
     const html = `
@@ -89,19 +89,19 @@ describe('HAST: advanced table scenarios', () => {
     </td>
   </tr>
 </table>
-`;
-    const { tree } = await parseMarkdown(html, { enableHtml: true });
-    const content = await mapHastToPdfContent(tree as any);
-    
-    console.log('表格内格式化测试结果:', JSON.stringify(content, null, 2));
-    
-    const table = content.find((c: any) => 'table' in c);
-    expect(table).toBeTruthy();
-    
-    const tableStr = JSON.stringify(table);
+`
+    const { tree } = await parseMarkdown(html, { enableHtml: true })
+    const content = await mapHastToPdfContent(tree as any)
+
+    console.log('表格内格式化测试结果:', JSON.stringify(content, null, 2))
+
+    const table = content.find((c: any) => 'table' in c)
+    expect(table).toBeTruthy()
+
+    const tableStr = JSON.stringify(table)
     // 应该包含格式化信息
-    expect(tableStr).toContain('"bold":true');
-    expect(tableStr).toContain('"italics":true');
-    expect(tableStr).toContain('代码片段');
-  });
-});
+    expect(tableStr).toContain('"bold":true')
+    expect(tableStr).toContain('"italics":true')
+    expect(tableStr).toContain('代码片段')
+  })
+})

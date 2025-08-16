@@ -2,7 +2,7 @@
   <main class="container">
     <h1>md-to-pdf 中文字体注入示例</h1>
     <section class="controls">
-      <textarea v-model="markdown" rows="10"/>
+      <textarea v-model="markdown" rows="10" />
       <div class="font-uploader">
         <label>上传中文字体 (TTF/Subsets):</label>
         <input type="file" accept=".ttf,.otf" @change="onFontUpload" />
@@ -19,24 +19,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { downloadPdf, type FontResource } from '../../../src';
-import { buildFontResourceFromUrls } from '../../../src/utils/fontLoader';
+import { ref } from 'vue'
+import { downloadPdf, type FontResource } from '../../../src'
+import { buildFontResourceFromUrls } from '../../../src/utils/fontLoader'
 
-const markdown = ref(`# 标题\n\n这是一段中文内容，用于展示中文字体注入后的显示与复制效果。`);
+const markdown = ref(`# 标题\n\n这是一段中文内容，用于展示中文字体注入后的显示与复制效果。`)
 
-const fontRes = ref<FontResource | null>(null);
-const fontUrl = ref('');
+const fontRes = ref<FontResource | null>(null)
+const fontUrl = ref('')
 
 async function onFontUpload(e: Event) {
-  const input = e.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file) return;
-  const buf = await file.arrayBuffer();
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  const buf = await file.arrayBuffer()
   fontRes.value = {
     name: 'UserFont',
     normal: buf,
-  };
+  }
 }
 
 async function onDownload() {
@@ -44,13 +44,13 @@ async function onDownload() {
     fonts: fontRes.value ? [fontRes.value] : undefined,
     defaultFont: fontRes.value ? 'UserFont' : undefined,
     enableHtml: true,
-  });
+  })
 }
 
 async function onLoadFromUrl() {
-  if (!fontUrl.value) return;
-  const res = await buildFontResourceFromUrls('RemoteFont', { normal: fontUrl.value });
-  fontRes.value = res;
+  if (!fontUrl.value) return
+  const res = await buildFontResourceFromUrls('RemoteFont', { normal: fontUrl.value })
+  fontRes.value = res
 }
 </script>
 
@@ -64,13 +64,17 @@ async function onLoadFromUrl() {
   display: grid;
   gap: 12px;
 }
-.font-remote input { width: 100%; }
+.font-remote input {
+  width: 100%;
+}
 textarea {
   width: 100%;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
-.hint { color: #666; }
-button { width: fit-content; }
+.hint {
+  color: #666;
+}
+button {
+  width: fit-content;
+}
 </style>
-
-
