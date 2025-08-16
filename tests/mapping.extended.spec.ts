@@ -14,8 +14,10 @@ describe('mapping: extended nodes (task list, table, code, image)', () => {
     expect(firstStr).toContain('☑');
     expect(secondStr).toContain('☐');
 
-    const code = content.find((c: any) => c.style === 'code');
-    expect(code.text).toContain("console.log('hi')");
+    // 代码块现在使用表格结构包装
+    const codeBlock = content.find((c: any) => c.table && c.table.body && c.table.body[0] && c.table.body[0][0] && c.table.body[0][0].style === 'codeBlock');
+    expect(codeBlock).toBeDefined();
+    expect(codeBlock.table.body[0][0].text).toContain("console.log('hi')");
   });
 
   it('table alignment and image with resolver', async () => {
@@ -25,7 +27,9 @@ describe('mapping: extended nodes (task list, table, code, image)', () => {
     const content = await mapRemarkToPdfContent(tree as any, { imageResolver: resolver });
 
     const tbl = content.find((c: any) => 'table' in c);
-    expect(tbl.table.body[0][0].bold).toBe(true); // header bold
+    // 现在表头使用 style 和 fillColor 而不是 bold
+    expect(tbl.table.body[0][0].style).toBe('tableHeader');
+    expect(tbl.table.body[0][0].fillColor).toBe('#f6f8fa');
     expect(tbl.table.body[1][0].alignment).toBeUndefined();
     expect(tbl.table.body[1][1].alignment).toBe('center');
     expect(tbl.table.body[1][2].alignment).toBe('right');

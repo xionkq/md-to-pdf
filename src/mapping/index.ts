@@ -1,5 +1,7 @@
 /* remark AST → pdfmake 内容映射（支持嵌套/任务列表/表格/代码块/图片） */
 
+import { createH1Border, createH2Border, createBlockquoteBorder, createTableLayout, createCodeBlockStyle } from '../styles/github-borders';
+
 export type PdfContent = any[];
 
 interface NodeBase { type: string; [key: string]: any }
@@ -29,7 +31,16 @@ export async function mapRemarkToPdfContent(tree: NodeBase, ctx: MapContext = {}
       case 'heading': {
         const txt = textFromChildren(node.children || []);
         const level = Math.max(1, Math.min(6, node.depth || 1));
+        
+        // 添加标题内容
         content.push({ text: txt, style: `h${level}` });
+        
+        // GitHub 样式：H1 和 H2 添加底部边框
+        if (level === 1) {
+          content.push(createH1Border());
+        } else if (level === 2) {
+          content.push(createH2Border());
+        }
         break;
       }
       case 'paragraph': {
@@ -75,15 +86,25 @@ export async function mapRemarkToPdfContent(tree: NodeBase, ctx: MapContext = {}
       case 'blockquote': {
         const inner: any[] = [];
         for (const n of node.children || []) {
-          if (n.type === 'paragraph') inner.push({ text: inline(n.children || []), margin: [0, 2, 0, 2] });
+          if (n.type === 'paragraph') inner.push({ text: inline(n.children || []), style: 'blockquote', margin: [0, 2, 0, 2] });
           else await visit(n);
         }
-        content.push({ stack: inner, margin: [8, 4, 0, 8], style: 'paragraph' });
+        
+        // GitHub 样式：使用左边框 + 内容的布局
+        content.push({
+          columns: [
+            createBlockquoteBorder(inner.length * 16), // 根据内容高度调整边框
+            { stack: inner, width: '*' }
+          ],
+          columnGap: 0,
+          margin: [0, 8, 0, 16]
+        });
         break;
       }
       case 'code': {
         const value = node.value ?? '';
-        content.push({ text: value, style: 'code', preserveLeadingSpaces: true, margin: [0, 4, 0, 8] });
+        // 使用 GitHub 样式的代码块
+        content.push(createCodeBlockStyle(value));
         break;
       }
       case 'table': {
@@ -94,7 +115,7 @@ export async function mapRemarkToPdfContent(tree: NodeBase, ctx: MapContext = {}
           for (let c = 0; c < (row.children || []).length; c++) {
             const cell = row.children[c];
             const txt = textFromChildren(cell.children || []);
-            const cellDef: any = { text: txt };
+            const cellDef: any = { text: txt, style: 'tableCell' };
             const alignment = aligns[c] || null;
             if (alignment === 'center' || alignment === 'right') {
               cellDef.alignment = alignment;
@@ -103,9 +124,21 @@ export async function mapRemarkToPdfContent(tree: NodeBase, ctx: MapContext = {}
           }
           rows.push(cells);
         }
-        // bold header row if exists
-        if (rows.length > 0) rows[0] = rows[0].map((c: any) => ({ ...c, bold: true }));
-        content.push({ table: { body: rows }, layout: 'lightHorizontalLines', margin: [0, 4, 0, 8] });
+        
+        // GitHub 样式：表头行使用特殊样式，带背景色
+        if (rows.length > 0) {
+          rows[0] = rows[0].map((c: any) => ({ 
+            ...c, 
+            style: 'tableHeader',
+            fillColor: '#f6f8fa' 
+          }));
+        }
+        
+        content.push({ 
+          table: { body: rows }, 
+          layout: createTableLayout(), 
+          margin: [0, 8, 0, 16] 
+        });
         break;
       }
       case 'image': {
@@ -150,7 +183,7 @@ export async function mapRemarkToPdfContent(tree: NodeBase, ctx: MapContext = {}
         } else if (child.type === 'table') {
           blocks.push(buildTable(child));
         } else if (child.type === 'code') {
-          blocks.push({ text: child.value ?? '', style: 'code', preserveLeadingSpaces: true, margin: [0, 4, 0, 8] });
+          blocks.push(createCodeBlockStyle(child.value ?? ''));
         } else if (child.type === 'blockquote') {
           const inner: any[] = [];
           for (const n of child.children || []) {
@@ -176,7 +209,7 @@ export async function mapRemarkToPdfContent(tree: NodeBase, ctx: MapContext = {}
     return listNode.ordered ? { ol: items } : { ul: items };
   }
 
-  // 构建表格（将首行加粗；对齐仅在 center/right 时设置，left 使用默认）
+  // 构建表格（GitHub 样式，带表头背景和边框）
   function buildTable(node: any): any {
     const rows: any[] = [];
     const aligns: (string | null)[] = node.align || [];
@@ -185,7 +218,7 @@ export async function mapRemarkToPdfContent(tree: NodeBase, ctx: MapContext = {}
       for (let c = 0; c < (row.children || []).length; c++) {
         const cell = row.children[c];
         const txt = textFromChildren(cell.children || []);
-        const cellDef: any = { text: txt };
+        const cellDef: any = { text: txt, style: 'tableCell' };
         const alignment = aligns[c] || null;
         if (alignment === 'center' || alignment === 'right') {
           cellDef.alignment = alignment;
@@ -194,8 +227,21 @@ export async function mapRemarkToPdfContent(tree: NodeBase, ctx: MapContext = {}
       }
       rows.push(cells);
     }
-    if (rows.length > 0) rows[0] = rows[0].map((c: any) => ({ ...c, bold: true }));
-    return { table: { body: rows }, layout: 'lightHorizontalLines', margin: [0, 4, 0, 8] };
+    
+    // GitHub 样式：表头行使用特殊样式，带背景色
+    if (rows.length > 0) {
+      rows[0] = rows[0].map((c: any) => ({ 
+        ...c, 
+        style: 'tableHeader',
+        fillColor: '#f6f8fa' 
+      }));
+    }
+    
+    return { 
+      table: { body: rows }, 
+      layout: createTableLayout(), 
+      margin: [0, 8, 0, 16] 
+    };
   }
 
   function inline(nodes: any[]): any[] {

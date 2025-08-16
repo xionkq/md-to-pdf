@@ -207,7 +207,8 @@ describe('HAST: complex nesting scenarios', () => {
         return true;
       });
       
-      expect(meaningfulContent.length).toBe(2);
+      // 现在H1会添加边框，所以有3个元素：H1标题、H1边框、段落
+      expect(meaningfulContent.length).toBe(3);
     });
   });
 

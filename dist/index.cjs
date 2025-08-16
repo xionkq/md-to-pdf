@@ -159,6 +159,110 @@ async function parseMarkdown(markdown, htmlOptions = {}) {
   return { tree, flavor: "hast" };
 }
 
+// src/styles/github-borders.ts
+function createH1Border(pageWidth = 515) {
+  return {
+    canvas: [
+      {
+        type: "line",
+        x1: 0,
+        y1: 0,
+        x2: pageWidth,
+        y2: 0,
+        lineWidth: 2,
+        lineColor: "#d1d9e0"
+      }
+    ],
+    margin: [0, 8, 0, 0]
+    // 顶部间距
+  };
+}
+function createH2Border(pageWidth = 515) {
+  return {
+    canvas: [
+      {
+        type: "line",
+        x1: 0,
+        y1: 0,
+        x2: pageWidth,
+        y2: 0,
+        lineWidth: 1,
+        lineColor: "#d1d9e0"
+      }
+    ],
+    margin: [0, 8, 0, 0]
+    // 顶部间距
+  };
+}
+function createBlockquoteBorder(height = 20) {
+  return {
+    canvas: [
+      {
+        type: "line",
+        x1: 0,
+        y1: 0,
+        x2: 0,
+        y2: height,
+        lineWidth: 4,
+        lineColor: "#d0d7de"
+      }
+    ],
+    margin: [0, 0, 8, 0],
+    // 右侧间距
+    width: 4
+  };
+}
+function createTableLayout() {
+  return {
+    hLineWidth: function(i, node) {
+      return 1;
+    },
+    vLineWidth: function(i, node) {
+      return 1;
+    },
+    hLineColor: function(i, node) {
+      return "#d1d9e0";
+    },
+    vLineColor: function(i, node) {
+      return "#d1d9e0";
+    },
+    paddingLeft: function(i, node) {
+      return 8;
+    },
+    paddingRight: function(i, node) {
+      return 8;
+    },
+    paddingTop: function(i, node) {
+      return 6;
+    },
+    paddingBottom: function(i, node) {
+      return 6;
+    }
+  };
+}
+function createCodeBlockStyle(content) {
+  return {
+    table: {
+      widths: ["*"],
+      body: [[{
+        text: content,
+        style: "codeBlock",
+        border: [false, false, false, false]
+        // 禁用表格边框
+      }]]
+    },
+    layout: {
+      hLineWidth: () => 0,
+      vLineWidth: () => 0,
+      paddingLeft: () => 12,
+      paddingRight: () => 12,
+      paddingTop: () => 8,
+      paddingBottom: () => 8
+    },
+    margin: [0, 8, 0, 16]
+  };
+}
+
 // src/mapping/index.ts
 async function mapRemarkToPdfContent(tree, ctx = {}) {
   const content = [];
@@ -180,6 +284,11 @@ async function mapRemarkToPdfContent(tree, ctx = {}) {
         const txt = textFromChildren(node.children || []);
         const level = Math.max(1, Math.min(6, node.depth || 1));
         content.push({ text: txt, style: `h${level}` });
+        if (level === 1) {
+          content.push(createH1Border());
+        } else if (level === 2) {
+          content.push(createH2Border());
+        }
         break;
       }
       case "paragraph": {
@@ -225,15 +334,23 @@ async function mapRemarkToPdfContent(tree, ctx = {}) {
       case "blockquote": {
         const inner = [];
         for (const n of node.children || []) {
-          if (n.type === "paragraph") inner.push({ text: inline(n.children || []), margin: [0, 2, 0, 2] });
+          if (n.type === "paragraph") inner.push({ text: inline(n.children || []), style: "blockquote", margin: [0, 2, 0, 2] });
           else await visit(n);
         }
-        content.push({ stack: inner, margin: [8, 4, 0, 8], style: "paragraph" });
+        content.push({
+          columns: [
+            createBlockquoteBorder(inner.length * 16),
+            // 根据内容高度调整边框
+            { stack: inner, width: "*" }
+          ],
+          columnGap: 0,
+          margin: [0, 8, 0, 16]
+        });
         break;
       }
       case "code": {
         const value = node.value ?? "";
-        content.push({ text: value, style: "code", preserveLeadingSpaces: true, margin: [0, 4, 0, 8] });
+        content.push(createCodeBlockStyle(value));
         break;
       }
       case "table": {
@@ -244,7 +361,7 @@ async function mapRemarkToPdfContent(tree, ctx = {}) {
           for (let c = 0; c < (row.children || []).length; c++) {
             const cell = row.children[c];
             const txt = textFromChildren(cell.children || []);
-            const cellDef = { text: txt };
+            const cellDef = { text: txt, style: "tableCell" };
             const alignment = aligns[c] || null;
             if (alignment === "center" || alignment === "right") {
               cellDef.alignment = alignment;
@@ -253,8 +370,18 @@ async function mapRemarkToPdfContent(tree, ctx = {}) {
           }
           rows.push(cells);
         }
-        if (rows.length > 0) rows[0] = rows[0].map((c) => ({ ...c, bold: true }));
-        content.push({ table: { body: rows }, layout: "lightHorizontalLines", margin: [0, 4, 0, 8] });
+        if (rows.length > 0) {
+          rows[0] = rows[0].map((c) => ({
+            ...c,
+            style: "tableHeader",
+            fillColor: "#f6f8fa"
+          }));
+        }
+        content.push({
+          table: { body: rows },
+          layout: createTableLayout(),
+          margin: [0, 8, 0, 16]
+        });
         break;
       }
       case "image": {
@@ -295,7 +422,7 @@ async function mapRemarkToPdfContent(tree, ctx = {}) {
         } else if (child.type === "table") {
           blocks.push(buildTable(child));
         } else if (child.type === "code") {
-          blocks.push({ text: child.value ?? "", style: "code", preserveLeadingSpaces: true, margin: [0, 4, 0, 8] });
+          blocks.push(createCodeBlockStyle(child.value ?? ""));
         } else if (child.type === "blockquote") {
           const inner = [];
           for (const n of child.children || []) {
@@ -327,7 +454,7 @@ async function mapRemarkToPdfContent(tree, ctx = {}) {
       for (let c = 0; c < (row.children || []).length; c++) {
         const cell = row.children[c];
         const txt = textFromChildren(cell.children || []);
-        const cellDef = { text: txt };
+        const cellDef = { text: txt, style: "tableCell" };
         const alignment = aligns[c] || null;
         if (alignment === "center" || alignment === "right") {
           cellDef.alignment = alignment;
@@ -336,8 +463,18 @@ async function mapRemarkToPdfContent(tree, ctx = {}) {
       }
       rows.push(cells);
     }
-    if (rows.length > 0) rows[0] = rows[0].map((c) => ({ ...c, bold: true }));
-    return { table: { body: rows }, layout: "lightHorizontalLines", margin: [0, 4, 0, 8] };
+    if (rows.length > 0) {
+      rows[0] = rows[0].map((c) => ({
+        ...c,
+        style: "tableHeader",
+        fillColor: "#f6f8fa"
+      }));
+    }
+    return {
+      table: { body: rows },
+      layout: createTableLayout(),
+      margin: [0, 8, 0, 16]
+    };
   }
   function inline(nodes) {
     const parts = [];
@@ -358,21 +495,125 @@ async function mapRemarkToPdfContent(tree, ctx = {}) {
 
 // src/styles.ts
 function createDefaultStyles(theme = {}) {
-  const base = theme.baseFontSize ?? 11;
-  const headingSizes = theme.headingFontSizes ?? [24, 20, 16, 14, 12, 11];
-  const linkColor = theme.linkColor ?? "#1a73e8";
+  const base = theme.baseFontSize ?? 12;
+  const headingSizes = theme.headingFontSizes ?? [
+    Math.round(base * 2),
+    // H1: 24px (2.0x)
+    Math.round(base * 1.5),
+    // H2: 18px (1.5x)
+    Math.round(base * 1.25),
+    // H3: 15px (1.25x)
+    Math.round(base * 1),
+    // H4: 12px (1.0x)
+    Math.round(base * 0.875),
+    // H5: 10.5px (0.875x)
+    Math.round(base * 0.85)
+    // H6: 10.2px (0.85x)
+  ];
+  const linkColor = theme.linkColor ?? "#0969da";
   const codeFontSize = theme.code?.fontSize ?? base - 1;
-  const codeBackground = theme.code?.background ?? "#f5f7fa";
+  const codeBackground = theme.code?.background ?? "#f6f8fa";
+  const codeBorderColor = theme.code?.borderColor ?? "#d1d9e0";
+  const blockquoteBorderColor = theme.blockquote?.borderColor ?? "#d0d7de";
+  const blockquoteTextColor = theme.blockquote?.textColor ?? "#656d76";
+  const tableHeaderFill = theme.table?.headerFill ?? "#f6f8fa";
+  const tableBorderColor = theme.table?.borderColor ?? "#d1d9e0";
+  const tableCellPadding = theme.table?.cellPadding ?? 6;
   return {
-    paragraph: { fontSize: base, lineHeight: 1.25, margin: [0, 4, 0, 8] },
-    link: { color: linkColor, decoration: "underline" },
-    code: { fontSize: codeFontSize, background: codeBackground, margin: [0, 4, 0, 8] },
-    h1: { fontSize: headingSizes[0], bold: true, margin: [0, 0, 0, 12] },
-    h2: { fontSize: headingSizes[1], bold: true, margin: [0, 10, 0, 10] },
-    h3: { fontSize: headingSizes[2], bold: true, margin: [0, 10, 0, 8] },
-    h4: { fontSize: headingSizes[3], bold: true, margin: [0, 8, 0, 6] },
-    h5: { fontSize: headingSizes[4], bold: true, margin: [0, 6, 0, 4] },
-    h6: { fontSize: headingSizes[5], bold: true, margin: [0, 4, 0, 4] }
+    // 段落：GitHub 行高和间距
+    paragraph: {
+      fontSize: base,
+      lineHeight: 1.6,
+      // GitHub 使用 1.6 行高
+      margin: [0, 6, 0, 10]
+    },
+    // 链接：GitHub 蓝色，悬停时下划线
+    link: {
+      color: linkColor,
+      decoration: "underline"
+    },
+    // 行内代码：GitHub 样式
+    code: {
+      fontSize: codeFontSize,
+      background: codeBackground,
+      color: "#1f2328",
+      // GitHub 代码文字色
+      margin: [2, 0, 2, 0]
+      // 行内代码的小边距
+    },
+    // 代码块：GitHub 样式，更大的内边距
+    codeBlock: {
+      fontSize: codeFontSize,
+      background: codeBackground,
+      color: "#1f2328",
+      margin: [0, 8, 0, 16]
+      // 注意：pdfmake 不直接支持 border，我们可能需要用其他方法实现边框
+    },
+    // 标题样式：参考 GitHub Markdown
+    h1: {
+      fontSize: headingSizes[0],
+      bold: true,
+      color: "#1f2328",
+      margin: [0, 0, 0, 16]
+      // 底部更大间距
+      // GitHub H1 有底部边框，但 pdfmake 需要特殊处理
+    },
+    h2: {
+      fontSize: headingSizes[1],
+      bold: true,
+      color: "#1f2328",
+      margin: [0, 24, 0, 16]
+      // 顶部间距增加
+      // GitHub H2 也有底部细线
+    },
+    h3: {
+      fontSize: headingSizes[2],
+      bold: true,
+      color: "#1f2328",
+      margin: [0, 20, 0, 12]
+    },
+    h4: {
+      fontSize: headingSizes[3],
+      bold: true,
+      color: "#1f2328",
+      margin: [0, 16, 0, 8]
+    },
+    h5: {
+      fontSize: headingSizes[4],
+      bold: true,
+      color: "#656d76",
+      // H5/H6 使用灰色
+      margin: [0, 16, 0, 8]
+    },
+    h6: {
+      fontSize: headingSizes[5],
+      bold: true,
+      color: "#656d76",
+      margin: [0, 16, 0, 8]
+    },
+    // 引用块样式：GitHub blockquote
+    blockquote: {
+      fontSize: base,
+      color: blockquoteTextColor,
+      lineHeight: 1.6,
+      margin: [16, 8, 0, 16]
+      // 左侧间距用于边框效果
+      // 左边框需要特殊实现
+    },
+    // 表格样式配置
+    tableHeader: {
+      fontSize: base,
+      bold: true,
+      fillColor: tableHeaderFill,
+      color: "#1f2328",
+      margin: [tableCellPadding, tableCellPadding, tableCellPadding, tableCellPadding]
+    },
+    tableCell: {
+      fontSize: base,
+      color: "#1f2328",
+      lineHeight: 1.6,
+      margin: [tableCellPadding, tableCellPadding, tableCellPadding, tableCellPadding]
+    }
   };
 }
 
@@ -481,6 +722,7 @@ async function mapHastToPdfContent(tree, ctx = {}) {
     let acc = "";
     for (const ch of children || []) {
       if (ch.type === "text") acc += ch.value ?? "";
+      else if (ch.type === "element" && ch.tagName?.toLowerCase() === "br") acc += "\n";
       else if (ch.children) acc += textFromChildren(ch.children);
     }
     return acc;
@@ -522,15 +764,63 @@ async function mapHastToPdfContent(tree, ctx = {}) {
     for (const tr of trNodes) {
       const cells = [];
       for (const cell of (tr.children || []).filter((c) => c.type === "element")) {
-        const txt = textFromChildren(cell.children || []);
         const isTh = cell.tagName === "th";
-        const cellDef = { text: txt };
-        if (isTh) cellDef.bold = true;
-        cells.push(cellDef);
+        let cellContent;
+        const hasBlockElements = (cell.children || []).some(
+          (c) => c.type === "element" && ["ul", "ol", "p", "div", "blockquote", "pre"].includes(c.tagName?.toLowerCase())
+        );
+        if (hasBlockElements) {
+          const parts = [];
+          for (const child of cell.children || []) {
+            if (child.type === "element") {
+              const tag = child.tagName?.toLowerCase();
+              if (tag === "ul" || tag === "ol") {
+                const listItems = (child.children || []).filter((li) => li.type === "element" && li.tagName?.toLowerCase() === "li").map((li) => "\u2022 " + textFromChildren(li.children || []).trim()).join("\n");
+                if (listItems) parts.push(listItems);
+              } else if (tag === "p" || tag === "div") {
+                const txt = textFromChildren(child.children || []).trim();
+                if (txt) parts.push(txt);
+              } else {
+                const txt = textFromChildren([child]).trim();
+                if (txt) parts.push(txt);
+              }
+            } else if (child.type === "text") {
+              const txt = String(child.value || "").trim();
+              if (txt) parts.push(txt);
+            }
+          }
+          cellContent = { text: parts.join("\n") || "" };
+        } else {
+          const inlineContent = inline(cell.children || []);
+          const cleanedContent = inlineContent.filter((item) => {
+            if (typeof item === "string") {
+              return item.trim().length > 0;
+            }
+            return true;
+          });
+          while (cleanedContent.length > 0 && typeof cleanedContent[0] === "string" && !cleanedContent[0].trim()) {
+            cleanedContent.shift();
+          }
+          while (cleanedContent.length > 0 && typeof cleanedContent[cleanedContent.length - 1] === "string" && !cleanedContent[cleanedContent.length - 1].trim()) {
+            cleanedContent.pop();
+          }
+          cellContent = { text: cleanedContent.length > 0 ? cleanedContent : "" };
+        }
+        if (isTh) {
+          cellContent.style = "tableHeader";
+          cellContent.fillColor = "#f6f8fa";
+        } else {
+          cellContent.style = "tableCell";
+        }
+        cells.push(cellContent);
       }
       if (cells.length) rows.push(cells);
     }
-    return { table: { body: rows }, layout: "lightHorizontalLines", margin: [0, 4, 0, 8] };
+    return {
+      table: { body: rows },
+      layout: createTableLayout(),
+      margin: [0, 8, 0, 16]
+    };
   }
   async function visit(node) {
     if (node.type === "root") {
@@ -549,6 +839,11 @@ async function mapHastToPdfContent(tree, ctx = {}) {
         const level = Number(tag[1]);
         const txt = textFromChildren(node.children || []);
         content.push({ text: txt, style: `h${level}` });
+        if (level === 1) {
+          content.push(createH1Border());
+        } else if (level === 2) {
+          content.push(createH2Border());
+        }
         break;
       }
       case "p":
@@ -559,7 +854,8 @@ async function mapHastToPdfContent(tree, ctx = {}) {
           let runs = [];
           const flush = () => {
             if (runs.length) {
-              content.push({ text: runs, style: "paragraph" });
+              const filteredRuns = runs.filter((r) => typeof r !== "string" || r.trim().length > 0);
+              if (filteredRuns.length) content.push({ text: filteredRuns, style: "paragraph" });
               runs = [];
             }
           };
@@ -580,7 +876,11 @@ async function mapHastToPdfContent(tree, ctx = {}) {
           }
           flush();
         } else {
-          content.push({ text: inline(children), style: "paragraph" });
+          const inlineContent = inline(children);
+          const filteredContent = inlineContent.filter((c) => typeof c !== "string" || c.trim().length > 0);
+          if (filteredContent.length) {
+            content.push({ text: filteredContent, style: "paragraph" });
+          }
         }
         break;
       }
@@ -593,24 +893,37 @@ async function mapHastToPdfContent(tree, ctx = {}) {
       case "blockquote": {
         const inner = [];
         for (const n of node.children || []) {
-          if (n.type === "element" && (n.tagName === "p" || n.tagName === "div")) inner.push({ text: inline(n.children || []), margin: [0, 2, 0, 2] });
-          else if (n.type === "text") {
-            const val = String(n.value ?? "");
-            if (val.trim()) inner.push({ text: val, margin: [0, 2, 0, 2] });
+          if (n.type === "element" && (n.tagName === "p" || n.tagName === "div")) {
+            inner.push({ text: inline(n.children || []), style: "blockquote", margin: [0, 2, 0, 2] });
+          } else if (n.type === "text") {
+            const val = String(n.value ?? "").trim();
+            if (val) inner.push({ text: val, style: "blockquote", margin: [0, 2, 0, 2] });
           }
         }
-        content.push({ stack: inner, margin: [8, 4, 0, 8], style: "paragraph" });
+        content.push({
+          columns: [
+            createBlockquoteBorder(inner.length * 16),
+            // 根据内容高度调整边框
+            { stack: inner, width: "*" }
+          ],
+          columnGap: 0,
+          margin: [0, 8, 0, 16]
+        });
         break;
       }
       case "pre": {
         const txt = textFromChildren(node.children || []);
-        content.push({ text: txt, style: "code", preserveLeadingSpaces: true, margin: [0, 4, 0, 8] });
+        content.push(createCodeBlockStyle(txt));
         break;
       }
       case "code": {
         const isBlock = !node.children?.some((c) => c.type === "text" && (c.value || "").includes("\n")) ? false : true;
         const txt = textFromChildren(node.children || []);
-        content.push({ text: txt, style: "code", preserveLeadingSpaces: isBlock, margin: [0, 4, 0, 8] });
+        if (isBlock) {
+          content.push(createCodeBlockStyle(txt));
+        } else {
+          content.push({ text: txt, style: "code" });
+        }
         break;
       }
       case "ul":
@@ -621,7 +934,17 @@ async function mapHastToPdfContent(tree, ctx = {}) {
           let runs = [];
           const flushRuns = () => {
             if (runs.length) {
-              blocks.push({ text: runs, style: "paragraph", margin: [0, 2, 0, 2] });
+              let filteredRuns = runs.filter((r) => {
+                if (typeof r === "string") return r.trim().length > 0;
+                return true;
+              });
+              filteredRuns = filteredRuns.map((r) => {
+                if (typeof r === "string") return r.replace(/\s+/g, " ").trim();
+                return r;
+              }).filter((r) => typeof r !== "string" || r.length > 0);
+              if (filteredRuns.length) {
+                blocks.push({ text: filteredRuns, style: "paragraph", margin: [0, 2, 0, 2] });
+              }
               runs = [];
             }
           };
@@ -642,8 +965,11 @@ async function mapHastToPdfContent(tree, ctx = {}) {
           for (const child of li.children || []) {
             if (child.type === "text") {
               let val = String(child.value ?? "");
-              if (runs.length === 0) val = val.replace(/^[\s\r\n]+/, "");
-              if (val) runs.push(val);
+              if (runs.length === 0 && blocks.length === 0) {
+                val = val.replace(/^[\s\r\n]+/, "");
+              }
+              val = val.replace(/[\s\r\n]+/g, " ");
+              if (val && val !== " ") runs.push(val);
               continue;
             }
             if (child.type === "element") {
@@ -655,8 +981,16 @@ async function mapHastToPdfContent(tree, ctx = {}) {
               if (tag2 === "p" || tag2 === "div") {
                 flushRuns();
                 const segs = inline(child.children || []);
-                if (segs.length && typeof segs[0] === "string") segs[0] = segs[0].replace(/^\n+/, "");
-                blocks.push({ text: segs, style: "paragraph", margin: [0, 2, 0, 2] });
+                const cleanedSegs = segs.filter((seg) => {
+                  if (typeof seg === "string") return seg.trim().length > 0;
+                  return true;
+                });
+                if (cleanedSegs.length && typeof cleanedSegs[0] === "string") {
+                  cleanedSegs[0] = cleanedSegs[0].replace(/^[\n\s]+/, "").replace(/[\n\s]+$/, "");
+                }
+                if (cleanedSegs.length) {
+                  blocks.push({ text: cleanedSegs, style: "paragraph", margin: [0, 2, 0, 2] });
+                }
                 continue;
               }
               flushRuns();
@@ -677,8 +1011,16 @@ async function mapHastToPdfContent(tree, ctx = {}) {
                   blocks.push({ text: alt, italics: true, color: "#666" });
                 }
               } else if (tag2 === "blockquote") {
-                const nested = await mapHastToPdfContent({ type: "root", children: [child] }, ctx);
-                blocks.push({ stack: nested, margin: [8, 4, 0, 8], style: "paragraph" });
+                const inner = [];
+                for (const n of child.children || []) {
+                  if (n.type === "element" && (n.tagName === "p" || n.tagName === "div")) {
+                    inner.push({ text: inline(n.children || []), margin: [0, 2, 0, 2] });
+                  } else if (n.type === "text") {
+                    const val = String(n.value ?? "").trim();
+                    if (val) inner.push({ text: val, margin: [0, 2, 0, 2] });
+                  }
+                }
+                blocks.push({ stack: inner, margin: [8, 4, 0, 8], style: "paragraph" });
               } else if (tag2 === "table") {
                 blocks.push(buildTableElement(child));
               } else if (tag2 === "pre" || tag2 === "code") {
@@ -690,7 +1032,13 @@ async function mapHastToPdfContent(tree, ctx = {}) {
             }
           }
           flushRuns();
-          items.push(blocks.length === 1 ? blocks[0] : { stack: blocks });
+          if (blocks.length === 0) {
+            items.push({ text: "", style: "paragraph", margin: [0, 2, 0, 2] });
+          } else if (blocks.length === 1) {
+            items.push(blocks[0]);
+          } else {
+            items.push({ stack: blocks });
+          }
         }
         content.push(tag === "ol" ? { ol: items } : { ul: items });
         break;

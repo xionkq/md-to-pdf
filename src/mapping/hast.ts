@@ -1,4 +1,6 @@
-/* HAST (HTML) → pdfmake 内容映射（基础版） */
+/* HAST (HTML) → pdfmake 内容映射（基础版，GitHub 样式对齐） */
+
+import { createH1Border, createH2Border, createBlockquoteBorder, createTableLayout, createCodeBlockStyle } from '../styles/github-borders';
 
 export type PdfContent = any[];
 
@@ -118,12 +120,21 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
           cellContent = { text: cleanedContent.length > 0 ? cleanedContent : '' };
         }
         
-        if (isTh) cellContent.bold = true;
+        if (isTh) {
+          cellContent.style = 'tableHeader';
+          cellContent.fillColor = '#f6f8fa';
+        } else {
+          cellContent.style = 'tableCell';
+        }
         cells.push(cellContent);
       }
       if (cells.length) rows.push(cells);
     }
-    return { table: { body: rows }, layout: 'lightHorizontalLines', margin: [0, 4, 0, 8] };
+    return { 
+      table: { body: rows }, 
+      layout: createTableLayout(), 
+      margin: [0, 8, 0, 16] 
+    };
   }
 
   async function visit(node: HastNodeBase) {
@@ -143,7 +154,16 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
       case 'h6': {
         const level = Number(tag[1]);
         const txt = textFromChildren(node.children || []);
+        
+        // 添加标题内容
         content.push({ text: txt, style: `h${level}` });
+        
+        // GitHub 样式：H1 和 H2 添加底部边框
+        if (level === 1) {
+          content.push(createH1Border());
+        } else if (level === 2) {
+          content.push(createH2Border());
+        }
         break;
       }
       case 'p':
@@ -194,25 +214,40 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
         const inner: any[] = [];
         for (const n of node.children || []) {
           if (n.type === 'element' && (n.tagName === 'p' || n.tagName === 'div')) {
-            inner.push({ text: inline(n.children || []), margin: [0, 2, 0, 2] });
+            inner.push({ text: inline(n.children || []), style: 'blockquote', margin: [0, 2, 0, 2] });
           } else if (n.type === 'text') {
             const val = String(n.value ?? '').trim();
-            if (val) inner.push({ text: val, margin: [0, 2, 0, 2] });
+            if (val) inner.push({ text: val, style: 'blockquote', margin: [0, 2, 0, 2] });
           }
         }
-        content.push({ stack: inner, margin: [8, 4, 0, 8], style: 'paragraph' });
+        
+        // GitHub 样式：使用左边框 + 内容的布局
+        content.push({
+          columns: [
+            createBlockquoteBorder(inner.length * 16), // 根据内容高度调整边框
+            { stack: inner, width: '*' }
+          ],
+          columnGap: 0,
+          margin: [0, 8, 0, 16]
+        });
         break;
       }
       case 'pre': {
         const txt = textFromChildren(node.children || []);
-        content.push({ text: txt, style: 'code', preserveLeadingSpaces: true, margin: [0, 4, 0, 8] });
+        // 使用 GitHub 样式的代码块
+        content.push(createCodeBlockStyle(txt));
         break;
       }
       case 'code': {
         // 独立的 <code> 视作代码块，否则通常由 inline 处理
         const isBlock = !node.children?.some((c: any) => c.type === 'text' && (c.value || '').includes('\n')) ? false : true;
         const txt = textFromChildren(node.children || []);
-        content.push({ text: txt, style: 'code', preserveLeadingSpaces: isBlock, margin: [0, 4, 0, 8] });
+        if (isBlock) {
+          content.push(createCodeBlockStyle(txt));
+        } else {
+          // 行内代码，保持简单样式
+          content.push({ text: txt, style: 'code' });
+        }
         break;
       }
       case 'ul':
