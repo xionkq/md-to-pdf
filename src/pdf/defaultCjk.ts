@@ -4,6 +4,7 @@ import type { FontResource } from '../index'
 export interface DefaultCjkOptions {
   name?: string
   url?: string // normal weight url
+  boldUrl?: string // bold weight url
   requestInit?: RequestInit
 }
 
@@ -11,10 +12,13 @@ export interface DefaultCjkOptions {
 // NOTE: You should provide a stable, CORS-enabled TTF/OTF URL in production.
 export const DEFAULT_CJK_FONT_URL =
   'https://cdn.jsdelivr.net/gh/googlefonts/noto-cjk@main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf'
+export const DEFAULT_CJK_BOLD_FONT_URL =
+  'https://cdn.jsdelivr.net/gh/googlefonts/noto-cjk@main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Bold.otf'
 
 export async function loadDefaultCjkFont(options: DefaultCjkOptions = {}): Promise<FontResource> {
   const name = options.name ?? 'NotoSansSC'
   const normal = options.url ?? DEFAULT_CJK_FONT_URL
-  const urls: FontUrlSet = { normal }
+  const bold = options.boldUrl ?? DEFAULT_CJK_BOLD_FONT_URL
+  const urls: FontUrlSet = { normal, bold }
   return buildFontResourceFromUrls(name, urls, options.requestInit)
 }
