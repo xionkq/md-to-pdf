@@ -26,11 +26,11 @@ export function createH1Border(pageWidth: number = 515): any {
         y1: 0,
         x2: pageWidth,
         y2: 0,
-        lineWidth: 2,
+        lineWidth: 1,
         lineColor: '#d1d9e0',
       } as BorderLine,
     ],
-    margin: [0, 8, 0, 0], // 顶部间距
+    margin: [0, 0, 0, 16], // 顶部间距
   }
 }
 
@@ -51,7 +51,7 @@ export function createH2Border(pageWidth: number = 515): any {
         lineColor: '#d1d9e0',
       } as BorderLine,
     ],
-    margin: [0, 8, 0, 0], // 顶部间距
+    margin: [0, 0, 0, 16], // 顶部间距
   }
 }
 

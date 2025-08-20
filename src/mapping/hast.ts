@@ -61,11 +61,11 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
         if (tag === 'strong' || tag === 'b') parts.push({ text: textFromChildren(n.children || []), bold: true })
         else if (tag === 'em' || tag === 'i') parts.push({ text: textFromChildren(n.children || []), italics: true })
         else if (tag === 's' || tag === 'strike' || tag === 'del')
-          parts.push({ text: textFromChildren(n.children || []), decoration: 'lineThrough' })
+          parts.push({ text: textFromChildren(n.children || []), style: 'del' })
         else if (tag === 'u') parts.push({ text: textFromChildren(n.children || []), decoration: 'underline' })
         else if (tag === 'code') parts.push({ text: textFromChildren(n.children || []), style: 'code' })
         else if (tag === 'a')
-          parts.push({ text: textFromChildren(n.children || []), link: n.properties?.href, style: 'link' })
+          parts.push({ text: textFromChildren(n.children || []), link: n.properties?.href, style: 'a' })
         else if (tag === 'br') parts.push('\n')
         else if (tag === 'img') {
           // 行内图片：尽量插入图片，否则退回 alt 文本
@@ -205,7 +205,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
           const flush = () => {
             if (runs.length) {
               const filteredRuns = runs.filter((r) => typeof r !== 'string' || r.trim().length > 0)
-              if (filteredRuns.length) content.push({ text: filteredRuns, style: 'paragraph' })
+              if (filteredRuns.length) content.push({ text: filteredRuns, style: 'p' })
               runs = []
             }
           }
@@ -229,18 +229,19 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
           const inlineContent = inline(children)
           const filteredContent = inlineContent.filter((c) => typeof c !== 'string' || c.trim().length > 0)
           if (filteredContent.length) {
-            content.push({ text: filteredContent, style: 'paragraph' })
+            content.push({ text: filteredContent, style: 'p' })
           }
         }
         break
       }
       case 'br':
-        content.push({ text: ['\n'], style: 'paragraph' })
+        content.push({ text: ['\n'], style: 'p' })
         break
       case 'hr':
         content.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1 }] })
         break
       case 'blockquote': {
+        // TODO: 处理引用嵌套
         const inner: any[] = []
         for (const n of node.children || []) {
           if (n.type === 'element' && (n.tagName === 'p' || n.tagName === 'div')) {
@@ -311,7 +312,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                 .filter((r) => typeof r !== 'string' || r.length > 0)
 
               if (filteredRuns.length) {
-                blocks.push({ text: filteredRuns, style: 'paragraph', margin: [0, 2, 0, 2] })
+                blocks.push({ text: filteredRuns, style: 'p', margin: [0, 2, 0, 2] })
               }
               runs = []
             }
@@ -362,7 +363,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                   cleanedSegs[0] = (cleanedSegs[0] as string).replace(/^[\n\s]+/, '').replace(/[\n\s]+$/, '')
                 }
                 if (cleanedSegs.length) {
-                  blocks.push({ text: cleanedSegs, style: 'paragraph', margin: [0, 2, 0, 2] })
+                  blocks.push({ text: cleanedSegs, style: 'p', margin: [0, 2, 0, 2] })
                 }
                 continue
               }
@@ -395,7 +396,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                     if (val) inner.push({ text: val, margin: [0, 2, 0, 2] })
                   }
                 }
-                blocks.push({ stack: inner, margin: [8, 4, 0, 8], style: 'paragraph' })
+                blocks.push({ stack: inner, margin: [8, 4, 0, 8], style: 'p' })
               } else if (tag === 'table') {
                 blocks.push(buildTableElement(child))
               } else if (tag === 'pre' || tag === 'code') {
@@ -410,14 +411,15 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
           // 优化列表项结构：单个块时直接使用，多个块时用 stack
           if (blocks.length === 0) {
             // 空列表项，添加空文本
-            items.push({ text: '', style: 'paragraph', margin: [0, 2, 0, 2] })
+            items.push({ text: '', style: 'p', margin: [0, 2, 0, 2] })
           } else if (blocks.length === 1) {
             items.push(blocks[0])
           } else {
             items.push({ stack: blocks })
           }
         }
-        content.push(tag === 'ol' ? { ol: items } : { ul: items })
+        // TODO: 嵌套的列表不应再次加上 style
+        content.push(tag === 'ol' ? { ol: items, style: 'ol' } : { ul: items, style: 'ul' })
         break
       }
       case 'table': {
@@ -443,7 +445,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
         // 未覆盖标签：降级遍历子节点，将文本内容合并到段落
         if (node.children && node.children.length) {
           const txt = textFromChildren(node.children)
-          if (txt) content.push({ text: txt, style: 'paragraph' })
+          if (txt) content.push({ text: txt, style: 'p' })
         }
       }
     }

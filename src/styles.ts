@@ -29,30 +29,54 @@ export function createDefaultStyles(theme: ThemeOptions = {}): StyleDictionary {
   const base = theme.baseFontSize ?? 14
 
   // GitHub 配色方案
-  const linkColor = theme.linkColor ?? '#0969da' // GitHub 蓝色
   const codeFontSize = theme.code?.fontSize ?? base - 1
   const codeBackground = theme.code?.background ?? '#f6f8fa' // GitHub 代码背景
   const codeBorderColor = theme.code?.borderColor ?? '#d1d9e0'
-
-  const blockquoteBorderColor = theme.blockquote?.borderColor ?? '#d0d7de'
-  const blockquoteTextColor = theme.blockquote?.textColor ?? '#59636e'
 
   const tableHeaderFill = theme.table?.headerFill ?? '#f6f8fa'
   const tableBorderColor = theme.table?.borderColor ?? '#d1d9e0'
   const tableCellPadding = theme.table?.cellPadding ?? 6
 
   return {
-    // 段落：GitHub 行高和间距
-    paragraph: {
-      fontSize: 14,
-      lineHeight: 1.5,
-      margin: [0, 0, 0, 16],
+    // 一二级标题下边距为到下横线的距离，16px 的边距在下横线上
+    h1: { fontSize: 28, bold: true, marginBottom: 8.4 },
+    h2: { fontSize: 21, bold: true, marginBottom: 6.3 },
+    h3: { fontSize: 17.5, bold: true, marginBottom: 16 },
+    h4: { fontSize: 14, bold: true, marginBottom: 16 },
+    h5: { fontSize: 12.25, bold: true, marginBottom: 16 },
+    h6: { fontSize: 11.9, color: '#59636e', bold: true, marginBottom: 16 },
+    p: { fontSize: 14, margin: [0, 0, 0, 16] },
+    // 引用块样式：GitHub blockquote
+    blockquote: { fontSize: 14, color: '#59636e', marginBottom: 16 },
+    a: { color: '#0969da', decoration: 'underline' },
+    ul: { marginBottom: 16, marginLeft: 12 },
+    ol: { marginBottom: 16, marginLeft: 12 },
+    del: { decoration: 'lineThrough' },
+
+    b: { bold: true },
+    strong: { bold: true },
+    u: { decoration: 'underline' },
+    s: { decoration: 'lineThrough' },
+    em: { italics: true },
+    i: { italics: true },
+    strike: { decoration: 'lineThrough' },
+    table: { marginBottom: 5 },
+    th: { bold: true, fillColor: '#EEEEEE' },
+
+    // 表格样式配置
+    tableHeader: {
+      fontSize: base,
+      bold: true,
+      fillColor: tableHeaderFill,
+      color: '#1f2328',
+      margin: [tableCellPadding, tableCellPadding, tableCellPadding, tableCellPadding],
     },
 
-    // 链接：GitHub 蓝色，悬停时下划线
-    link: {
-      color: linkColor,
-      decoration: 'underline',
+    tableCell: {
+      fontSize: base,
+      color: '#1f2328',
+      lineHeight: 1.6,
+      margin: [tableCellPadding, tableCellPadding, tableCellPadding, tableCellPadding],
     },
 
     // 行内代码：GitHub 样式
@@ -71,48 +95,6 @@ export function createDefaultStyles(theme: ThemeOptions = {}): StyleDictionary {
       margin: [0, 8, 0, 16],
       // 注意：pdfmake 不直接支持 border，我们可能需要用其他方法实现边框
     },
-
-    // 引用块样式：GitHub blockquote
-    blockquote: {
-      fontSize: base,
-      color: '#59636e',
-    },
-
-    // 表格样式配置
-    tableHeader: {
-      fontSize: base,
-      bold: true,
-      fillColor: tableHeaderFill,
-      color: '#1f2328',
-      margin: [tableCellPadding, tableCellPadding, tableCellPadding, tableCellPadding],
-    },
-
-    tableCell: {
-      fontSize: base,
-      color: '#1f2328',
-      lineHeight: 1.6,
-      margin: [tableCellPadding, tableCellPadding, tableCellPadding, tableCellPadding],
-    },
-
-    b: { bold: true },
-    strong: { bold: true },
-    u: { decoration: 'underline' },
-    del: { decoration: 'lineThrough' },
-    s: { decoration: 'lineThrough' },
-    em: { italics: true },
-    i: { italics: true },
-    h1: { fontSize: 24, bold: true, marginBottom: 5 },
-    h2: { fontSize: 22, bold: true, marginBottom: 5 },
-    h3: { fontSize: 20, bold: true, marginBottom: 5 },
-    h4: { fontSize: 18, bold: true, marginBottom: 5 },
-    h5: { fontSize: 16, bold: true, marginBottom: 5 },
-    h6: { fontSize: 14, bold: true, marginBottom: 5 },
-    a: { color: 'blue', decoration: 'underline' },
-    strike: { decoration: 'lineThrough' },
-    p: { margin: [0, 5, 0, 10] },
-    ul: { marginBottom: 5, marginLeft: 5 },
-    table: { marginBottom: 5 },
-    th: { bold: true, fillColor: '#EEEEEE' },
   } as any
 }
 
