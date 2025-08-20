@@ -253,12 +253,17 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
 
         // GitHub 样式：使用左边框 + 内容的布局
         content.push({
-          columns: [
-            createBlockquoteBorder(inner.length * 16), // 根据内容高度调整边框
-            { stack: inner, width: '*' },
-          ],
-          columnGap: 0,
-          margin: [0, 8, 0, 16],
+          layout: 'blockquoteLayout',
+          style: 'blockquote',
+          table: {
+            body: [
+              [
+                {
+                  text: inner,
+                },
+              ],
+            ],
+          },
         })
         break
       }

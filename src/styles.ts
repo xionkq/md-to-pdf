@@ -26,16 +26,7 @@ export interface ThemeOptions {
  * 参考 GitHub Primer CSS 和 markdown-body 样式规范
  */
 export function createDefaultStyles(theme: ThemeOptions = {}): StyleDictionary {
-  const base = theme.baseFontSize ?? 12
-  // GitHub 标题字号规范 (相对于基础字号的倍数)
-  const headingSizes = theme.headingFontSizes ?? [
-    Math.round(base * 2.0), // H1: 24px (2.0x)
-    Math.round(base * 1.5), // H2: 18px (1.5x)
-    Math.round(base * 1.25), // H3: 15px (1.25x)
-    Math.round(base * 1.0), // H4: 12px (1.0x)
-    Math.round(base * 0.875), // H5: 10.5px (0.875x)
-    Math.round(base * 0.85), // H6: 10.2px (0.85x)
-  ]
+  const base = theme.baseFontSize ?? 14
 
   // GitHub 配色方案
   const linkColor = theme.linkColor ?? '#0969da' // GitHub 蓝色
@@ -44,7 +35,7 @@ export function createDefaultStyles(theme: ThemeOptions = {}): StyleDictionary {
   const codeBorderColor = theme.code?.borderColor ?? '#d1d9e0'
 
   const blockquoteBorderColor = theme.blockquote?.borderColor ?? '#d0d7de'
-  const blockquoteTextColor = theme.blockquote?.textColor ?? '#656d76'
+  const blockquoteTextColor = theme.blockquote?.textColor ?? '#59636e'
 
   const tableHeaderFill = theme.table?.headerFill ?? '#f6f8fa'
   const tableBorderColor = theme.table?.borderColor ?? '#d1d9e0'
@@ -53,9 +44,9 @@ export function createDefaultStyles(theme: ThemeOptions = {}): StyleDictionary {
   return {
     // 段落：GitHub 行高和间距
     paragraph: {
-      fontSize: base,
-      lineHeight: 1.6, // GitHub 使用 1.6 行高
-      margin: [0, 6, 0, 10],
+      fontSize: 14,
+      lineHeight: 1.5,
+      margin: [0, 0, 0, 16],
     },
 
     // 链接：GitHub 蓝色，悬停时下划线
@@ -81,53 +72,10 @@ export function createDefaultStyles(theme: ThemeOptions = {}): StyleDictionary {
       // 注意：pdfmake 不直接支持 border，我们可能需要用其他方法实现边框
     },
 
-    // 标题样式：参考 GitHub Markdown
-    h1: {
-      fontSize: headingSizes[0],
-      bold: true,
-      color: '#1f2328',
-      margin: [0, 0, 0, 16], // 底部更大间距
-      // GitHub H1 有底部边框，但 pdfmake 需要特殊处理
-    },
-    h2: {
-      fontSize: headingSizes[1],
-      bold: true,
-      color: '#1f2328',
-      margin: [0, 24, 0, 16], // 顶部间距增加
-      // GitHub H2 也有底部细线
-    },
-    h3: {
-      fontSize: headingSizes[2],
-      bold: true,
-      color: '#1f2328',
-      margin: [0, 20, 0, 12],
-    },
-    h4: {
-      fontSize: headingSizes[3],
-      bold: true,
-      color: '#1f2328',
-      margin: [0, 16, 0, 8],
-    },
-    h5: {
-      fontSize: headingSizes[4],
-      bold: true,
-      color: '#656d76', // H5/H6 使用灰色
-      margin: [0, 16, 0, 8],
-    },
-    h6: {
-      fontSize: headingSizes[5],
-      bold: true,
-      color: '#656d76',
-      margin: [0, 16, 0, 8],
-    },
-
     // 引用块样式：GitHub blockquote
     blockquote: {
       fontSize: base,
-      color: blockquoteTextColor,
-      lineHeight: 1.6,
-      margin: [16, 8, 0, 16], // 左侧间距用于边框效果
-      // 左边框需要特殊实现
+      color: '#59636e',
     },
 
     // 表格样式配置
@@ -145,5 +93,48 @@ export function createDefaultStyles(theme: ThemeOptions = {}): StyleDictionary {
       lineHeight: 1.6,
       margin: [tableCellPadding, tableCellPadding, tableCellPadding, tableCellPadding],
     },
+
+    b: { bold: true },
+    strong: { bold: true },
+    u: { decoration: 'underline' },
+    del: { decoration: 'lineThrough' },
+    s: { decoration: 'lineThrough' },
+    em: { italics: true },
+    i: { italics: true },
+    h1: { fontSize: 24, bold: true, marginBottom: 5 },
+    h2: { fontSize: 22, bold: true, marginBottom: 5 },
+    h3: { fontSize: 20, bold: true, marginBottom: 5 },
+    h4: { fontSize: 18, bold: true, marginBottom: 5 },
+    h5: { fontSize: 16, bold: true, marginBottom: 5 },
+    h6: { fontSize: 14, bold: true, marginBottom: 5 },
+    a: { color: 'blue', decoration: 'underline' },
+    strike: { decoration: 'lineThrough' },
+    p: { margin: [0, 5, 0, 10] },
+    ul: { marginBottom: 5, marginLeft: 5 },
+    table: { marginBottom: 5 },
+    th: { bold: true, fillColor: '#EEEEEE' },
   } as any
+}
+
+export function createLayout() {
+  return {
+    // 使用表格布局模拟 blockquote
+    blockquoteLayout: {
+      hLineWidth: function () {
+        return 0
+      },
+      vLineWidth: function (i: number) {
+        return i === 0 ? 3 : 0
+      },
+      vLineColor: function () {
+        return '#d1d9e0'
+      },
+      paddingLeft: function () {
+        return 14
+      },
+      paddingRight: function () {
+        return 14
+      },
+    },
+  }
 }

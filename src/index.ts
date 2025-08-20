@@ -5,6 +5,7 @@ import { buildDocDefinition } from './pdf/builder'
 import { registerFonts } from './pdf/fonts'
 import { loadDefaultCjkFont } from './pdf/defaultCjk'
 import { mapHastToPdfContent } from './mapping/hast'
+import { createLayout } from './styles'
 
 /**
  * 核心导出：对外暴露的类型与 API。该文件串联解析、映射与 pdfmake 生成流程。
@@ -137,7 +138,8 @@ export async function markdownToPdf(markdown: string, options: MarkdownToPdfOpti
   return new Promise<MarkdownPdfResult>((resolve, reject) => {
     try {
       const runtime: any = pdfMakeResolved
-      const pdfDoc = runtime.createPdf(docDefinition)
+      console.log('docDefinition', docDefinition)
+      const pdfDoc = runtime.createPdf(docDefinition, createLayout())
       // 测试环境中优先走 getBuffer，兼容性更好；浏览器中仍返回 Blob
       pdfDoc.getBuffer((buffer: ArrayBuffer) => {
         const uint8 = new Uint8Array(buffer as any)
