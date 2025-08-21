@@ -164,4 +164,9 @@ export async function downloadPdf(markdown: string, fileName: string, options?: 
   URL.revokeObjectURL(url)
 }
 
+// 导出内部函数用于调试和测试
+export { parseMarkdown } from './core/parseMarkdown'
+export { mapRemarkToPdfContent } from './mapping'
+export { mapHastToPdfContent } from './mapping/hast'
+
 export default { markdownToPdf, downloadPdf }

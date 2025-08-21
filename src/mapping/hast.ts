@@ -58,11 +58,11 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
         parts.push(n.value ?? '')
       } else if (n.type === 'element') {
         const tag = (n.tagName || '').toLowerCase()
-        if (tag === 'strong' || tag === 'b') parts.push({ text: textFromChildren(n.children || []), bold: true })
+        if (tag === 'strong' || tag === 'b') parts.push({ text: textFromChildren(n.children || []), style: 'b' })
         else if (tag === 'em' || tag === 'i') parts.push({ text: textFromChildren(n.children || []), italics: true })
         else if (tag === 's' || tag === 'strike' || tag === 'del')
           parts.push({ text: textFromChildren(n.children || []), style: 'del' })
-        else if (tag === 'u') parts.push({ text: textFromChildren(n.children || []), decoration: 'underline' })
+        else if (tag === 'u') parts.push({ text: textFromChildren(n.children || []), style: 'u' })
         else if (tag === 'code') parts.push({ text: textFromChildren(n.children || []), style: 'code' })
         else if (tag === 'a')
           parts.push({ text: textFromChildren(n.children || []), link: n.properties?.href, style: 'a' })
@@ -82,6 +82,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
   }
 
   function buildTableElement(node: any): any {
+    console.log('buildTableElement node', node)
     const rows: any[] = []
     const sections = (node.children || []).filter(
       (c: any) => c.type === 'element' && (c.tagName === 'thead' || c.tagName === 'tbody')
@@ -151,19 +152,25 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
         }
 
         if (isTh) {
-          cellContent.style = 'tableHeader'
-          cellContent.fillColor = '#f6f8fa'
+          cellContent.style = 'th'
         } else {
-          cellContent.style = 'tableCell'
+          cellContent.style = 'td'
         }
+
+        // 处理对齐信息 - 从HTML属性中读取
+        const alignment = cell.properties?.align as string
+        if (alignment === 'center' || alignment === 'right') {
+          cellContent.alignment = alignment
+        }
+
         cells.push(cellContent)
       }
       if (cells.length) rows.push(cells)
     }
     return {
       table: { body: rows },
-      layout: createTableLayout(),
-      margin: [0, 8, 0, 16],
+      layout: 'tableLayout',
+      style: 'table',
     }
   }
 

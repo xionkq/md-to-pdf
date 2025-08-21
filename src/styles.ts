@@ -52,32 +52,13 @@ export function createDefaultStyles(theme: ThemeOptions = {}): StyleDictionary {
     ul: { marginBottom: 16, marginLeft: 12 },
     ol: { marginBottom: 16, marginLeft: 12 },
     del: { decoration: 'lineThrough' },
-
     b: { bold: true },
-    strong: { bold: true },
+    table: { marginBottom: 16 },
+    th: { bold: true },
+
     u: { decoration: 'underline' },
-    s: { decoration: 'lineThrough' },
     em: { italics: true },
     i: { italics: true },
-    strike: { decoration: 'lineThrough' },
-    table: { marginBottom: 5 },
-    th: { bold: true, fillColor: '#EEEEEE' },
-
-    // 表格样式配置
-    tableHeader: {
-      fontSize: base,
-      bold: true,
-      fillColor: tableHeaderFill,
-      color: '#1f2328',
-      margin: [tableCellPadding, tableCellPadding, tableCellPadding, tableCellPadding],
-    },
-
-    tableCell: {
-      fontSize: base,
-      color: '#1f2328',
-      lineHeight: 1.6,
-      margin: [tableCellPadding, tableCellPadding, tableCellPadding, tableCellPadding],
-    },
 
     // 行内代码：GitHub 样式
     code: {
@@ -117,6 +98,37 @@ export function createLayout() {
       paddingRight: function () {
         return 14
       },
+    },
+    // createLayout
+    tableLayout: {
+      hLineWidth: function (i: number, node: any) {
+        return 1
+      },
+      vLineWidth: function (i: number, node: any) {
+        return 1
+      },
+      hLineColor: function (i: number, node: any) {
+        return '#d1d9e0'
+      },
+      vLineColor: function (i: number, node: any) {
+        return '#d1d9e0'
+      },
+      paddingLeft: function (i: number, node: any) {
+        return 13
+      },
+      paddingRight: function (i: number, node: any) {
+        return 13
+      },
+      paddingTop: function (i: number, node: any) {
+        return 6
+      },
+      paddingBottom: function (i: number, node: any) {
+        return 6
+      },
+      fillColor: function (i: number) {
+        if (i === 0) return null
+        return (i % 2 === 0) ? '#f6f8fa' : null;
+      }
     },
   }
 }

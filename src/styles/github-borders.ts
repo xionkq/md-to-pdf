@@ -96,10 +96,10 @@ export function createTableLayout(): any {
       return '#d1d9e0'
     },
     paddingLeft: function (i: number, node: any) {
-      return 8
+      return 13
     },
     paddingRight: function (i: number, node: any) {
-      return 8
+      return 13
     },
     paddingTop: function (i: number, node: any) {
       return 6
@@ -107,6 +107,10 @@ export function createTableLayout(): any {
     paddingBottom: function (i: number, node: any) {
       return 6
     },
+    fillColor: function (i: number) {
+      if (i === 0) return null
+      return (i % 2 === 0) ? '#f6f8fa' : null;
+    }
   }
 }
 
