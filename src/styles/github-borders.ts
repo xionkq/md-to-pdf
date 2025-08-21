@@ -109,8 +109,8 @@ export function createTableLayout(): any {
     },
     fillColor: function (i: number) {
       if (i === 0) return null
-      return (i % 2 === 0) ? '#f6f8fa' : null;
-    }
+      return i % 2 === 0 ? '#f6f8fa' : null
+    },
   }
 }
 

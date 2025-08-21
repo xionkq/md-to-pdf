@@ -33,10 +33,6 @@ export function createDefaultStyles(theme: ThemeOptions = {}): StyleDictionary {
   const codeBackground = theme.code?.background ?? '#f6f8fa' // GitHub 代码背景
   const codeBorderColor = theme.code?.borderColor ?? '#d1d9e0'
 
-  const tableHeaderFill = theme.table?.headerFill ?? '#f6f8fa'
-  const tableBorderColor = theme.table?.borderColor ?? '#d1d9e0'
-  const tableCellPadding = theme.table?.cellPadding ?? 6
-
   return {
     // 一二级标题下边距为到下横线的距离，16px 的边距在下横线上
     h1: { fontSize: 28, bold: true, marginBottom: 8.4 },
@@ -55,18 +51,12 @@ export function createDefaultStyles(theme: ThemeOptions = {}): StyleDictionary {
     b: { bold: true },
     table: { marginBottom: 16 },
     th: { bold: true },
+    // 行内代码
+    code: { background: '#f0f1f2' },
 
     u: { decoration: 'underline' },
     em: { italics: true },
     i: { italics: true },
-
-    // 行内代码：GitHub 样式
-    code: {
-      fontSize: codeFontSize,
-      background: codeBackground,
-      color: '#1f2328', // GitHub 代码文字色
-      margin: [2, 0, 2, 0], // 行内代码的小边距
-    },
 
     // 代码块：GitHub 样式，更大的内边距
     codeBlock: {
@@ -127,8 +117,8 @@ export function createLayout() {
       },
       fillColor: function (i: number) {
         if (i === 0) return null
-        return (i % 2 === 0) ? '#f6f8fa' : null;
-      }
+        return i % 2 === 0 ? '#f6f8fa' : null
+      },
     },
   }
 }

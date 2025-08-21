@@ -63,7 +63,8 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
         else if (tag === 's' || tag === 'strike' || tag === 'del')
           parts.push({ text: textFromChildren(n.children || []), style: 'del' })
         else if (tag === 'u') parts.push({ text: textFromChildren(n.children || []), style: 'u' })
-        else if (tag === 'code') parts.push({ text: textFromChildren(n.children || []), style: 'code' })
+        // code 前后补空格模拟边距（因为行内元素似乎会导致 margin 字段不生效，有必要吗。。。）
+        else if (tag === 'code') parts.push({ text: ' ' + textFromChildren(n.children || []) + ' ', style: 'code' })
         else if (tag === 'a')
           parts.push({ text: textFromChildren(n.children || []), link: n.properties?.href, style: 'a' })
         else if (tag === 'br') parts.push('\n')
