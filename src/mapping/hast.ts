@@ -19,8 +19,40 @@ export interface MapContext {
   imageResolver?: (src: string) => Promise<string>
 }
 
+async function urlToBase64(url: string): Promise<string> {
+  // TODO: 图片自己转会跨域，只能让用户想办法转 base64 了吗？
+  const response = await fetch(`/proxy${url}`) // 注意加上 /proxy 前缀
+  const blob = await response.blob()
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
+
 export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = {}): Promise<PdfContent> {
   const content: PdfContent = []
+
+  // 提供默认的图片解析器
+  const defaultImageResolver = async (src: string): Promise<string> => {
+    // 如果是 dataURL，直接返回
+    if (src.startsWith('data:')) {
+      return src
+    }
+
+    // 如果是完整的 HTTP/HTTPS URL，尝试直接使用
+    if (src.startsWith('http://') || src.startsWith('https://')) {
+      return await urlToBase64(src)
+    }
+
+    // 对于相对路径或其他格式，也直接返回让 pdfmake 尝试处理
+    return src
+  }
+
+  // 如果没有提供 imageResolver，使用默认实现
+  const imageResolver = ctx.imageResolver || defaultImageResolver
 
   function textFromChildren(children: any[]): string {
     let acc = ''
@@ -69,10 +101,10 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
           parts.push({ text: textFromChildren(n.children || []), link: n.properties?.href, style: 'a' })
         else if (tag === 'br') parts.push('\n')
         else if (tag === 'img') {
-          // 行内图片：尽量插入图片，否则退回 alt 文本
-          const src = n.properties?.src as string
+          // 行内图片：由于 inline 函数不是异步的，且行内图片会破坏版面布局
+          // 所以这里只返回 alt 文本，实际图片处理在块级元素中完成
           const alt = (n.properties?.alt as string) || ''
-          parts.push({ text: alt }) // 在块级路径中处理图片；这里退回文本，避免内联破版
+          parts.push({ text: alt || '[图片]' })
         } else if (n.children) {
           const inner = textFromChildren(n.children || [])
           if (inner) parts.push(inner)
@@ -208,7 +240,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
       case 'div': {
         const children = node.children || []
         const hasImage = !!children.find((c: any) => c.type === 'element' && c.tagName?.toLowerCase() === 'img')
-        if (hasImage && ctx.imageResolver) {
+        if (hasImage) {
           let runs: any[] = []
           const flush = () => {
             if (runs.length) {
@@ -223,7 +255,8 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
               const src = ch.properties?.src as string
               const alt = (ch.properties?.alt as string) || ''
               try {
-                const dataUrl = await ctx.imageResolver(src)
+                console.log(2222)
+                const dataUrl = await imageResolver(src)
                 content.push({ image: dataUrl, margin: [0, 4, 0, 8] })
               } catch {
                 if (alt) runs.push({ text: alt, italics: true, color: '#666' })
@@ -383,15 +416,13 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
               } else if (tag === 'img') {
                 const src = child.properties?.src as string
                 const alt = (child.properties?.alt as string) || ''
-                if (ctx.imageResolver) {
-                  try {
-                    const dataUrl = await ctx.imageResolver(src)
-                    blocks.push({ image: dataUrl, margin: [0, 4, 0, 8] })
-                  } catch {
-                    if (alt) blocks.push({ text: alt, italics: true, color: '#666' })
-                  }
-                } else if (alt) {
-                  blocks.push({ text: alt, italics: true, color: '#666' })
+                try {
+                  console.log(3333)
+                  const dataUrl = await imageResolver(src)
+
+                  blocks.push({ image: dataUrl, margin: [0, 4, 0, 8] })
+                } catch {
+                  if (alt) blocks.push({ text: alt, italics: true, color: '#666' })
                 }
               } else if (tag === 'blockquote') {
                 // 直接在这里处理 blockquote，避免递归调用导致的双层嵌套
@@ -437,15 +468,11 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
       case 'img': {
         const src = node.properties?.src as string
         const alt = (node.properties?.alt as string) || ''
-        if (ctx.imageResolver) {
-          try {
-            const dataUrl = await ctx.imageResolver(src)
-            content.push({ image: dataUrl, margin: [0, 4, 0, 8] })
-          } catch {
-            if (alt) content.push({ text: alt, italics: true, color: '#666' })
-          }
-        } else if (alt) {
-          content.push({ text: alt, italics: true, color: '#666' })
+        try {
+          const dataUrl = await imageResolver(src)
+          content.push({ image: dataUrl, margin: [0, 4, 0, 8] })
+        } catch {
+          if (alt) content.push({ text: alt, italics: true, color: '#666' })
         }
         break
       }
