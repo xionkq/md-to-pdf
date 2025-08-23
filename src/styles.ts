@@ -26,13 +26,6 @@ export interface ThemeOptions {
  * 参考 GitHub Primer CSS 和 markdown-body 样式规范
  */
 export function createDefaultStyles(theme: ThemeOptions = {}): StyleDictionary {
-  const base = theme.baseFontSize ?? 14
-
-  // GitHub 配色方案
-  const codeFontSize = theme.code?.fontSize ?? base - 1
-  const codeBackground = theme.code?.background ?? '#f6f8fa' // GitHub 代码背景
-  const codeBorderColor = theme.code?.borderColor ?? '#d1d9e0'
-
   return {
     // 一二级标题下边距为到下横线的距离，16px 的边距在下横线上
     h1: { fontSize: 28, bold: true, marginBottom: 8.4 },
@@ -53,19 +46,13 @@ export function createDefaultStyles(theme: ThemeOptions = {}): StyleDictionary {
     th: { bold: true },
     // 行内代码
     code: { background: '#f0f1f2' },
+    // 代码块
+    codeBlock: { fontSize: 11.9, margin: [0, 0, 0, 16] },
 
+    // TODO: 待支持
     u: { decoration: 'underline' },
     em: { italics: true },
     i: { italics: true },
-
-    // 代码块：GitHub 样式，更大的内边距
-    codeBlock: {
-      fontSize: codeFontSize,
-      background: codeBackground,
-      color: '#1f2328',
-      margin: [0, 8, 0, 16],
-      // 注意：pdfmake 不直接支持 border，我们可能需要用其他方法实现边框
-    },
   } as any
 }
 

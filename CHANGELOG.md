@@ -24,9 +24,12 @@
 - 改进：列表项内的行内元素与 `<br>` 聚合为同一段，避免额外换行；支持列表项内嵌套表格/代码/引用
 - 安全：引入 `rehype-sanitize`，提供 `src/utils/sanitize.ts` 以合并白名单配置
 - 计划：
-  - 默认样式对齐 GitHub Markdown（进行中）
-  - 思考图片处理方案
-  - 参考 html-to-pdfmake 做好标签支持（主要在于标签嵌套）
-  - 支持受限样式映射（行内 style 白名单 → pdfmake 样式）
+  - 默认样式对齐 GitHub Markdown（已完成）
+  - 思考图片处理方案（已完成）
+  - 支持 markdown 中嵌套 html
+  - 参考 html-to-pdfmake 做好标签支持，主要在于标签嵌套
+  - 支持受限样式映射，行内 style 白名单 → pdfmake 样式
   - 补充测试：HAST 嵌套、样式白名单、空白处理一致性
+  - 处理代码块标签，颜色高亮等
+  - 配置项的整理、支持和补充
 

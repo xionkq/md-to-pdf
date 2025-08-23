@@ -6,6 +6,7 @@ import {
   createBlockquoteBorder,
   createTableLayout,
   createCodeBlockStyle,
+  createHrBorder,
 } from '../styles/github-borders'
 
 export type PdfContent = any[]
@@ -285,7 +286,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
         content.push({ text: ['\n'], style: 'p' })
         break
       case 'hr':
-        content.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1 }] })
+        content.push(createHrBorder())
         break
       case 'blockquote': {
         // TODO: 处理引用嵌套
@@ -316,6 +317,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
         break
       }
       case 'pre': {
+        // TODO: 代码中的空格字符被删除，应该保留
         const txt = textFromChildren(node.children || [])
         // 使用 GitHub 样式的代码块
         content.push(createCodeBlockStyle(txt))
@@ -448,7 +450,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                 const txt = textFromChildren(child.children || [])
                 blocks.push({ text: txt, style: 'code', preserveLeadingSpaces: true, margin: [0, 4, 0, 8] })
               } else if (tag === 'hr') {
-                blocks.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1 }] })
+                blocks.push(createHrBorder())
               }
             }
           }

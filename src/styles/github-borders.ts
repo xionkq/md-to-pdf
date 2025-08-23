@@ -30,7 +30,7 @@ export function createH1Border(pageWidth: number = 515): any {
         lineColor: '#d1d9e0',
       } as BorderLine,
     ],
-    margin: [0, 0, 0, 16], // 顶部间距
+    margin: [0, 0, 0, 16], // 底部间距
   }
 }
 
@@ -51,7 +51,28 @@ export function createH2Border(pageWidth: number = 515): any {
         lineColor: '#d1d9e0',
       } as BorderLine,
     ],
-    margin: [0, 0, 0, 16], // 顶部间距
+    margin: [0, 0, 0, 16], // 底部间距
+  }
+}
+
+/**
+ * 创建 H2 标题的底部细线（GitHub 样式）
+ * 细线，颜色为 #d1d9e0
+ */
+export function createHrBorder(pageWidth: number = 515): any {
+  return {
+    canvas: [
+      {
+        type: 'line',
+        x1: 0,
+        y1: 0,
+        x2: pageWidth,
+        y2: 0,
+        lineWidth: 3.5,
+        lineColor: '#d1d9e0',
+      } as BorderLine,
+    ],
+    margin: [0, 0, 0, 24], // 底部间距
   }
 }
 
@@ -126,7 +147,6 @@ export function createCodeBlockStyle(content: string): any {
         [
           {
             text: content,
-            style: 'codeBlock',
             border: [false, false, false, false], // 禁用表格边框
           },
         ],
@@ -135,11 +155,12 @@ export function createCodeBlockStyle(content: string): any {
     layout: {
       hLineWidth: () => 0,
       vLineWidth: () => 0,
-      paddingLeft: () => 12,
-      paddingRight: () => 12,
-      paddingTop: () => 8,
-      paddingBottom: () => 8,
+      paddingLeft: () => 16,
+      paddingRight: () => 16,
+      paddingTop: () => 16,
+      paddingBottom: () => 16,
+      fillColor: '#f0f1f2',
     },
-    margin: [0, 8, 0, 16],
+    style: 'codeBlock',
   }
 }
