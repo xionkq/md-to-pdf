@@ -50,6 +50,77 @@ async function defaultImageResolver(src: string): Promise<string> {
   return src
 }
 
+function camelToKebab(str: string): string {
+  return str
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .replace(/([A-Z])([A-Z][a-z])/g, "$1-$2")
+    .toLowerCase();
+}
+
+const svgAttrMap: Record<string, string> = {
+  // SVG 坐标 & 视图
+  viewBox: "viewBox",
+  preserveAspectRatio: "preserveAspectRatio",
+
+  // 渐变 <linearGradient> / <radialGradient>
+  gradientTransform: "gradientTransform",
+  gradientUnits: "gradientUnits",
+  spreadMethod: "spreadMethod",
+
+  // <pattern>
+  patternTransform: "patternTransform",
+  patternUnits: "patternUnits",
+
+  // <clipPath> / <mask>
+  clipPathUnits: "clipPathUnits",
+  maskContentUnits: "maskContentUnits",
+  maskUnits: "maskUnits",
+
+  // marker 相关
+  markerHeight: "markerHeight",
+  markerWidth: "markerWidth",
+  markerUnits: "markerUnits",
+
+  // filter 相关
+  filterUnits: "filterUnits",
+  primitiveUnits: "primitiveUnits",
+  kernelMatrix: "kernelMatrix", // feConvolveMatrix
+  kernelUnitLength: "kernelUnitLength",
+  baseFrequency: "baseFrequency", // feTurbulence
+  numOctaves: "numOctaves",
+  stitchTiles: "stitchTiles",
+  surfaceScale: "surfaceScale",
+  specularConstant: "specularConstant",
+  specularExponent: "specularExponent",
+  diffuseConstant: "diffuseConstant",
+
+  // feComposite
+  in2: "in2",
+
+  // <fePointLight>, <feSpotLight>
+  xChannelSelector: "xChannelSelector",
+  yChannelSelector: "yChannelSelector",
+  zChannelSelector: "zChannelSelector",
+  limitingConeAngle: "limitingConeAngle",
+
+  // xlink 属性 (旧标准，仍需支持)
+  xlinkHref: "xlink:href"
+};
+
+interface SvgNode { tagName: string, properties: Record<string, any>, children: SvgNode[] }
+function svgObjectToString(node: SvgNode): string {
+  const children = node.children.reduce((acc, n) => {
+    const a = svgObjectToString(n)
+    console.log('a', a)
+    return acc + a
+  }, '')
+  const propString = Object.keys(node.properties).reduce((acc, key) => {
+    const hasMap = Object.keys(svgAttrMap).includes(key)
+    return acc + ` ${hasMap ? svgAttrMap[key] : camelToKebab(key)}="${node.properties[key]}"`
+  }, '')
+  return `<${node.tagName}${propString}>${children}</${node.tagName}>`
+}
+
 export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = {}): Promise<PdfContent> {
   const content: PdfContent = []
 
@@ -109,9 +180,8 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
           const alt = (n.properties?.alt as string) || ''
           parts.push({ text: alt || '[图片]' })
         }
-        // TODO: svg 目前会被解析为多个元素节点，而不是一整个 svg 标签
         else if (tag === 'svg') {
-          parts.push({ svg: n.properties })
+          parts.push({ svg: svgObjectToString(n) })
         } else if (n.children) {
           const inner = textFromChildren(n.children || [])
           if (inner) parts.push(inner)
@@ -246,7 +316,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
       case 'p':
       case 'div': {
         const children = node.children || []
-        const hasImage = !!children.find((c: any) => c.type === 'element' && c.tagName?.toLowerCase() === 'img')
+        const hasImage = !!children.find((c: any) => c.type === 'element' && (c.tagName?.toLowerCase() === 'img' || c.tagName?.toLowerCase() === 'svg'))
         if (hasImage) {
           let runs: any[] = []
           const flush = () => {
@@ -268,6 +338,8 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
               } catch {
                 if (alt) runs.push({ text: alt, italics: true, color: '#666' })
               }
+            } else if (ch.type === 'element' && ch.tagName?.toLowerCase() === 'svg') {
+              content.push({ svg: svgObjectToString(ch) })
             } else {
               runs.push(...inline([ch] as any))
             }
@@ -495,5 +567,6 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
   }
 
   await visit(tree)
+  console.log('content', content)
   return content
 }

@@ -53,7 +53,7 @@ async function getHtmlProcessor(options: HtmlOptions = {}): Promise<Processor> {
     import('rehype-sanitize') as any,
   ])
 
-  const rehypeSanitize = (rehypeSanitizeModule as any).default ?? rehypeSanitizeModule
+  // const rehypeSanitize = (rehypeSanitizeModule as any).default ?? rehypeSanitizeModule
   const defaultSchema = (rehypeSanitizeModule as any).defaultSchema ?? (rehypeSanitizeModule as any).schema
 
   // 允许危险 HTML 先进入 HAST，然后 rehype-raw 解析，再 sanitize 过滤
@@ -70,7 +70,7 @@ async function getHtmlProcessor(options: HtmlOptions = {}): Promise<Processor> {
     .use(remarkGfm as any)
     .use(remarkRehype as any, { allowDangerousHtml: true })
     .use(rehypeRaw as any)
-    .use(rehypeSanitize as any, schema)
+    // .use(rehypeSanitize as any, schema)
   return cachedHtmlProcessor!
 }
 
