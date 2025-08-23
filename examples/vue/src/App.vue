@@ -39,11 +39,40 @@ async function onFontUpload(e: Event) {
   }
 }
 
+async function imageResolver(src: string): Promise<string> {
+  // 优先使用用户提供的 imageResolver，否则会默认将 url 转 base64（几乎必跨域）
+  const urlToBase64 = async (url: string): Promise<string> => {
+    const response = await fetch(`/proxy${url}`) // 注意加上 /proxy 前缀
+    const blob = await response.blob()
+
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  }
+
+  // 如果是 dataURL，直接返回
+  if (src.startsWith('data:')) {
+    return src
+  }
+
+  // 如果是完整的 HTTP/HTTPS URL，尝试直接使用
+  if (src.startsWith('http://') || src.startsWith('https://')) {
+    return await urlToBase64(src)
+  }
+
+  // 对于相对路径或其他格式，也直接返回让 pdfmake 尝试处理
+  return src
+}
+
 async function onDownload() {
   await downloadPdf(markdown.value, 'example-cn.pdf', {
     fonts: fontRes.value ? [fontRes.value] : undefined,
     defaultFont: fontRes.value ? 'UserFont' : undefined,
     enableHtml: true,
+    // imageResolver,
   })
 }
 

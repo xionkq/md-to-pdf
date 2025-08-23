@@ -60,3 +60,10 @@ await downloadPdf('# 标题\n\n这是一段中文文本', 'cn.pdf', {
 - 代码语法高亮（集成 Shiki）
 - 数学公式支持（KaTeX）
 
+### 使用图片
+
+由于 pdfmake 仅支持在 image 节点中使用 base64 作为图片格式，因此你的源 markdown 文件应尽可能使用 base64 格式的图片，例如：
+
+若使用 url 作为图片格式，md-to-pdf 会默认将其转为 base64，例如：
+
+但当图片 url 和你的应用程序不同源，则大概率会触发跨域限制，此时需要在你的应用程序中定义 imageReserver 函数用于转换 base64，并将其传入配置中，参考示例
