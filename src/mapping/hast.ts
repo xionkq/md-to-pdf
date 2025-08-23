@@ -80,7 +80,8 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
       t === 'code' ||
       t === 'span' ||
       t === 'br' ||
-      t === 'img'
+      t === 'img' ||
+      t === 'svg'
     )
   }
 
@@ -106,6 +107,10 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
           // 所以这里只返回 alt 文本，实际图片处理在块级元素中完成
           const alt = (n.properties?.alt as string) || ''
           parts.push({ text: alt || '[图片]' })
+        }
+        // TODO: svg 目前会被解析为多个元素节点，而不是一整个 svg 标签
+        else if (tag === 'svg') {
+          parts.push({ svg: n.properties })
         } else if (n.children) {
           const inner = textFromChildren(n.children || [])
           if (inner) parts.push(inner)
