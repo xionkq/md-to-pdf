@@ -70,7 +70,7 @@ async function getHtmlProcessor(options: HtmlOptions = {}): Promise<Processor> {
     .use(remarkGfm as any)
     .use(remarkRehype as any, { allowDangerousHtml: true })
     .use(rehypeRaw as any)
-    // .use(rehypeSanitize as any, schema)
+  // .use(rehypeSanitize as any, schema)
   return cachedHtmlProcessor!
 }
 
