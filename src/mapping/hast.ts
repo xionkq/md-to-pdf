@@ -161,36 +161,133 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
     )
   }
 
-  function inline(nodes: any[]): any[] {
+  // 累积样式接口，支持样式叠加
+  interface TextStyle {
+    bold?: boolean
+    italic?: boolean
+    underline?: boolean
+    strike?: boolean
+    code?: boolean
+    link?: string
+    style?: string[]
+  }
+
+  function mergeStyles(base: TextStyle, add: TextStyle): TextStyle {
+    return {
+      bold: base.bold || add.bold,
+      italic: base.italic || add.italic,
+      underline: base.underline || add.underline,
+      strike: base.strike || add.strike,
+      code: base.code || add.code,
+      link: add.link || base.link, // 新的链接覆盖旧的
+      style: [...(base.style || []), ...(add.style || [])]
+    }
+  }
+
+  function styleToObject(style: TextStyle, text: any): any {
+    const result: any = { text }
+    
+    if (style.bold) result.style = result.style ? [result.style, 'b'].flat() : 'b'
+    if (style.italic) result.italics = true
+    if (style.underline) result.style = result.style ? [result.style, 'u'].flat() : 'u'
+    if (style.strike) result.style = result.style ? [result.style, 'del'].flat() : 'del'
+    if (style.code) result.style = result.style ? [result.style, 'code'].flat() : 'code'
+    if (style.link) {
+      result.link = style.link
+      result.style = result.style ? [result.style, 'a'].flat() : 'a'
+    }
+    
+    // 处理自定义样式数组
+    if (style.style && style.style.length > 0) {
+      result.style = result.style ? [result.style, ...style.style].flat() : style.style
+    }
+    
+    return result
+  }
+
+  function inline(nodes: any[], baseStyle: TextStyle = {}): any[] {
     const parts: any[] = []
+    
     for (const n of nodes || []) {
       if (n.type === 'text') {
-        parts.push(n.value ?? '')
+        const textValue = n.value ?? ''
+        if (textValue) {
+          // 如果有累积的样式，应用到文本上
+          if (Object.keys(baseStyle).length > 0) {
+            parts.push(styleToObject(baseStyle, textValue))
+          } else {
+            parts.push(textValue)
+          }
+        }
       } else if (n.type === 'element') {
         const tag = (n.tagName || '').toLowerCase()
-        if (tag === 'strong' || tag === 'b') parts.push({ text: textFromChildren(n.children || []), style: 'b' })
-        else if (tag === 'em' || tag === 'i') parts.push({ text: textFromChildren(n.children || []), italics: true })
-        else if (tag === 's' || tag === 'strike' || tag === 'del')
-          parts.push({ text: textFromChildren(n.children || []), style: 'del' })
-        else if (tag === 'u') parts.push({ text: textFromChildren(n.children || []), style: 'u' })
-        // code 前后补空格模拟边距（因为行内元素似乎会导致 margin 字段不生效，有必要吗。。。）
-        else if (tag === 'code') parts.push({ text: ' ' + textFromChildren(n.children || []) + ' ', style: 'code' })
-        else if (tag === 'a')
-          parts.push({ text: textFromChildren(n.children || []), link: n.properties?.href, style: 'a' })
-        else if (tag === 'br') parts.push('\n')
-        else if (tag === 'img') {
-          // 行内图片：由于 inline 函数不是异步的，且行内图片会破坏版面布局
-          // 所以这里只返回 alt 文本，实际图片处理在块级元素中完成
-          const alt = (n.properties?.alt as string) || ''
-          parts.push({ text: alt || '[图片]' })
-        } else if (tag === 'svg') {
-          parts.push({ svg: svgObjectToString(n) })
-        } else if (n.children) {
-          const inner = textFromChildren(n.children || [])
-          if (inner) parts.push(inner)
+        let currentStyle = { ...baseStyle }
+        
+        // 根据标签添加样式
+        switch (tag) {
+          case 'strong':
+          case 'b':
+            currentStyle = mergeStyles(currentStyle, { bold: true })
+            break
+          case 'em':
+          case 'i':
+            currentStyle = mergeStyles(currentStyle, { italic: true })
+            break
+          case 's':
+          case 'strike':
+          case 'del':
+            currentStyle = mergeStyles(currentStyle, { strike: true })
+            break
+          case 'u':
+            currentStyle = mergeStyles(currentStyle, { underline: true })
+            break
+          case 'code':
+            currentStyle = mergeStyles(currentStyle, { code: true })
+            break
+          case 'a':
+            currentStyle = mergeStyles(currentStyle, { link: n.properties?.href })
+            break
+          case 'br':
+            parts.push('\n')
+            continue
+          case 'img':
+            // 行内图片：由于 inline 函数不是异步的，且行内图片会破坏版面布局
+            // 所以这里只返回 alt 文本，实际图片处理在块级元素中完成
+            const alt = (n.properties?.alt as string) || ''
+            const altText = alt || '[图片]'
+            if (Object.keys(baseStyle).length > 0) {
+              parts.push(styleToObject(baseStyle, altText))
+            } else {
+              parts.push(altText)
+            }
+            continue
+          case 'svg':
+            parts.push({ svg: svgObjectToString(n) })
+            continue
+        }
+        
+        // 递归处理子节点，传递累积的样式
+        if (n.children && n.children.length > 0) {
+          const nestedParts = inline(n.children, currentStyle)
+          parts.push(...nestedParts)
+        } else if (tag === 'br') {
+          // br标签的特殊处理已在switch中完成
+        } else if (tag === 'img' || tag === 'svg') {
+          // img和svg的特殊处理已在switch中完成
+        } else {
+          // 对于未识别的标签，尝试提取文本内容
+          const textContent = textFromChildren([n])
+          if (textContent) {
+            if (Object.keys(baseStyle).length > 0) {
+              parts.push(styleToObject(baseStyle, textContent))
+            } else {
+              parts.push(textContent)
+            }
+          }
         }
       }
     }
+    
     return parts
   }
 
@@ -216,33 +313,74 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
         )
 
         if (hasBlockElements) {
-          // 包含块级元素：特殊处理，保持一定的结构信息
-          const parts: string[] = []
+          // 包含块级元素：特殊处理，保持格式和结构信息
+          const parts: any[] = []
           for (const child of cell.children || []) {
             if (child.type === 'element') {
               const tag = child.tagName?.toLowerCase()
               if (tag === 'ul' || tag === 'ol') {
-                // 列表：提取列表项并用换行分隔
+                // 列表：提取列表项并保持格式，用换行分隔
                 const listItems = (child.children || [])
                   .filter((li: any) => li.type === 'element' && li.tagName?.toLowerCase() === 'li')
-                  .map((li: any) => '• ' + textFromChildren(li.children || []).trim())
+                  .map((li: any) => {
+                    const itemContent = inline(li.children || [])
+                    const itemText = itemContent.length > 0 ? itemContent : '[空]'
+                    return '• ' + (Array.isArray(itemText) ? itemText.map(p => typeof p === 'string' ? p : p.text || '').join('') : itemText)
+                  })
                   .join('\n')
                 if (listItems) parts.push(listItems)
               } else if (tag === 'p' || tag === 'div') {
-                const txt = textFromChildren(child.children || []).trim()
-                if (txt) parts.push(txt)
+                // 段落和div：使用inline处理保持格式
+                const inlineContent = inline(child.children || [])
+                if (inlineContent.length > 0) {
+                  // 对于段落内容，如果是纯文本则直接添加，否则保持结构
+                  const hasFormat = inlineContent.some(item => typeof item !== 'string')
+                  if (hasFormat) {
+                    parts.push(inlineContent)
+                  } else {
+                    const text = inlineContent.join('').trim()
+                    if (text) parts.push(text)
+                  }
+                }
               } else {
-                const txt = textFromChildren([child]).trim()
-                if (txt) parts.push(txt)
+                // 其他元素：使用inline处理
+                const inlineContent = inline([child])
+                if (inlineContent.length > 0) {
+                  const hasFormat = inlineContent.some(item => typeof item !== 'string')
+                  if (hasFormat) {
+                    parts.push(inlineContent)
+                  } else {
+                    const text = inlineContent.join('').trim()
+                    if (text) parts.push(text)
+                  }
+                }
               }
             } else if (child.type === 'text') {
               const txt = String(child.value || '').trim()
               if (txt) parts.push(txt)
             }
           }
-          cellContent = { text: parts.join('\n') || '' }
+          
+          // 构建单元格内容，支持混合格式
+          if (parts.length === 0) {
+            cellContent = { text: '' }
+          } else if (parts.length === 1 && typeof parts[0] === 'string') {
+            cellContent = { text: parts[0] }
+          } else {
+            // 有多个部分或包含格式，需要特殊处理
+            const flatParts: any[] = []
+            for (let i = 0; i < parts.length; i++) {
+              if (i > 0) flatParts.push('\n') // 段落之间换行
+              if (Array.isArray(parts[i])) {
+                flatParts.push(...parts[i])
+              } else {
+                flatParts.push(parts[i])
+              }
+            }
+            cellContent = { text: flatParts }
+          }
         } else {
-          // 简单内容或行内元素：使用 inline 处理并清理空白
+          // 简单内容或行内元素：使用新的inline处理支持嵌套
           const inlineContent = inline(cell.children || [])
           const cleanedContent = inlineContent.filter((item) => {
             if (typeof item === 'string') {
@@ -366,11 +504,38 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
         content.push(createHrBorder())
         break
       case 'blockquote': {
-        // TODO: 处理引用嵌套
+        // 处理引用嵌套，支持复杂的格式和结构
         const inner: any[] = []
         for (const n of node.children || []) {
-          if (n.type === 'element' && (n.tagName === 'p' || n.tagName === 'div')) {
-            inner.push({ text: inline(n.children || []), style: 'blockquote', margin: [0, 2, 0, 2] })
+          if (n.type === 'element') {
+            const tag = n.tagName?.toLowerCase()
+            if (tag === 'p' || tag === 'div') {
+              // 段落：使用inline处理支持嵌套格式
+              const inlineContent = inline(n.children || [])
+              if (inlineContent.length > 0) {
+                inner.push({ text: inlineContent, style: 'blockquote', margin: [0, 2, 0, 2] })
+              }
+            } else if (tag === 'ul' || tag === 'ol') {
+              // 列表：递归处理
+              const nestedList = await mapHastToPdfContent({ type: 'root', children: [n] } as any, ctx)
+              inner.push(...nestedList.map((item: any) => ({ ...item, margin: [8, 2, 0, 2] })))
+            } else if (tag === 'blockquote') {
+              // 嵌套引用
+              const nestedQuote = await mapHastToPdfContent({ type: 'root', children: [n] } as any, ctx)
+              inner.push(...nestedQuote.map((item: any) => ({ ...item, margin: [8, 2, 0, 2] })))
+            } else if (tag === 'pre' || tag === 'code') {
+              // 代码块
+              const txt = textFromChildren(n.children || [])
+              if (txt) {
+                inner.push({ text: txt, style: ['blockquote', 'code'], preserveLeadingSpaces: true, margin: [0, 2, 0, 2] })
+              }
+            } else {
+              // 其他元素：使用inline处理
+              const inlineContent = inline([n])
+              if (inlineContent.length > 0) {
+                inner.push({ text: inlineContent, style: 'blockquote', margin: [0, 2, 0, 2] })
+              }
+            }
           } else if (n.type === 'text') {
             const val = String(n.value ?? '').trim()
             if (val) inner.push({ text: val, style: 'blockquote', margin: [0, 2, 0, 2] })
@@ -378,19 +543,21 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
         }
 
         // GitHub 样式：使用左边框 + 内容的布局
-        content.push({
-          layout: 'blockquoteLayout',
-          style: 'blockquote',
-          table: {
-            body: [
-              [
-                {
-                  text: inner,
-                },
+        if (inner.length > 0) {
+          content.push({
+            layout: 'blockquoteLayout',
+            style: 'blockquote',
+            table: {
+              body: [
+                [
+                  {
+                    text: inner,
+                  },
+                ],
               ],
-            ],
-          },
-        })
+            },
+          })
+        }
         break
       }
       case 'pre': {
@@ -402,14 +569,12 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
       }
       case 'code': {
         // 独立的 <code> 视作代码块，否则通常由 inline 处理
-        const isBlock = !node.children?.some((c: any) => c.type === 'text' && (c.value || '').includes('\n'))
-          ? false
-          : true
+        const isBlock = node.children?.some((c: any) => c.type === 'text' && (c.value || '').includes('\n'))
         const txt = textFromChildren(node.children || [])
         if (isBlock) {
           content.push(createCodeBlockStyle(txt))
         } else {
-          // 行内代码，保持简单样式
+          // 行内代码，如果不在其他上下文中，直接输出
           content.push({ text: txt, style: 'code' })
         }
         break
@@ -477,7 +642,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                 continue
               }
               if (tag === 'p' || tag === 'div') {
-                // p/div 视作块：先合并当前行内，再输出该段落
+                // p/div 视作块：先合并当前行内，再输出该段落（支持嵌套格式）
                 flushRuns()
                 const segs = inline(child.children || [])
                 // 段落内部避免首尾空白和连续换行
@@ -485,8 +650,21 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                   if (typeof seg === 'string') return seg.trim().length > 0
                   return true
                 })
+                // 清理首尾空白（只对纯字符串）
                 if (cleanedSegs.length && typeof cleanedSegs[0] === 'string') {
                   cleanedSegs[0] = (cleanedSegs[0] as string).replace(/^[\n\s]+/, '').replace(/[\n\s]+$/, '')
+                  // 如果清理后为空，移除
+                  if (!cleanedSegs[0]) {
+                    cleanedSegs.shift()
+                  }
+                }
+                if (cleanedSegs.length && typeof cleanedSegs[cleanedSegs.length - 1] === 'string') {
+                  const lastIdx = cleanedSegs.length - 1
+                  cleanedSegs[lastIdx] = (cleanedSegs[lastIdx] as string).replace(/[\n\s]+$/, '')
+                  // 如果清理后为空，移除
+                  if (!cleanedSegs[lastIdx]) {
+                    cleanedSegs.pop()
+                  }
                 }
                 if (cleanedSegs.length) {
                   blocks.push({ text: cleanedSegs, style: 'p', margin: [0, 2, 0, 2] })
@@ -510,17 +688,36 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                   if (alt) blocks.push({ text: alt, italics: true, color: '#666' })
                 }
               } else if (tag === 'blockquote') {
-                // 直接在这里处理 blockquote，避免递归调用导致的双层嵌套
+                // 在列表项中处理 blockquote，支持嵌套格式
                 const inner: any[] = []
                 for (const n of child.children || []) {
-                  if (n.type === 'element' && (n.tagName === 'p' || n.tagName === 'div')) {
-                    inner.push({ text: inline(n.children || []), margin: [0, 2, 0, 2] })
+                  if (n.type === 'element') {
+                    const innerTag = n.tagName?.toLowerCase()
+                    if (innerTag === 'p' || innerTag === 'div') {
+                      // 段落：使用inline处理支持嵌套格式
+                      const inlineContent = inline(n.children || [])
+                      if (inlineContent.length > 0) {
+                        inner.push({ text: inlineContent, margin: [0, 2, 0, 2] })
+                      }
+                    } else {
+                      // 其他元素：使用inline处理
+                      const inlineContent = inline([n])
+                      if (inlineContent.length > 0) {
+                        inner.push({ text: inlineContent, margin: [0, 2, 0, 2] })
+                      }
+                    }
                   } else if (n.type === 'text') {
                     const val = String(n.value ?? '').trim()
                     if (val) inner.push({ text: val, margin: [0, 2, 0, 2] })
                   }
                 }
-                blocks.push({ stack: inner, margin: [8, 4, 0, 8], style: 'p' })
+                if (inner.length > 0) {
+                  blocks.push({ 
+                    stack: inner, 
+                    margin: [8, 4, 0, 8], 
+                    style: 'blockquote'
+                  })
+                }
               } else if (tag === 'table') {
                 blocks.push(buildTableElement(child))
               } else if (tag === 'pre' || tag === 'code') {
