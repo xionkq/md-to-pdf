@@ -504,45 +504,154 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
         content.push(createHrBorder())
         break
       case 'blockquote': {
-        // 处理引用嵌套，支持复杂的格式和结构
+        // 处理引用嵌套，支持完整的块级元素
         const inner: any[] = []
-        for (const n of node.children || []) {
-          if (n.type === 'element') {
-            const tag = n.tagName?.toLowerCase()
-            if (tag === 'p' || tag === 'div') {
-              // 段落：使用inline处理支持嵌套格式
-              const inlineContent = inline(n.children || [])
-              if (inlineContent.length > 0) {
-                inner.push({ text: inlineContent, style: 'blockquote', margin: [0, 2, 0, 2] })
+        
+        // 递归处理引用块中的每个子元素
+        const processBlockquoteChild = async (child: any): Promise<any[]> => {
+          if (child.type === 'element') {
+            const tag = child.tagName?.toLowerCase()
+            
+            switch (tag) {
+              case 'p':
+              case 'div': {
+                // 段落：使用inline处理支持嵌套格式
+                const inlineContent = inline(child.children || [])
+                if (inlineContent.length > 0) {
+                  return [{ text: inlineContent, style: 'blockquote', margin: [0, 2, 0, 2] }]
+                }
+                return []
               }
-            } else if (tag === 'ul' || tag === 'ol') {
-              // 列表：递归处理
-              const nestedList = await mapHastToPdfContent({ type: 'root', children: [n] } as any, ctx)
-              inner.push(...nestedList.map((item: any) => ({ ...item, margin: [8, 2, 0, 2] })))
-            } else if (tag === 'blockquote') {
-              // 嵌套引用
-              const nestedQuote = await mapHastToPdfContent({ type: 'root', children: [n] } as any, ctx)
-              inner.push(...nestedQuote.map((item: any) => ({ ...item, margin: [8, 2, 0, 2] })))
-            } else if (tag === 'pre' || tag === 'code') {
-              // 代码块
-              const txt = textFromChildren(n.children || [])
-              if (txt) {
-                inner.push({ text: txt, style: ['blockquote', 'code'], preserveLeadingSpaces: true, margin: [0, 2, 0, 2] })
+              
+              case 'h1':
+              case 'h2':
+              case 'h3':
+              case 'h4':
+              case 'h5':
+              case 'h6': {
+                // 标题：在引用块中的标题
+                const level = Number(tag[1])
+                const txt = textFromChildren(child.children || [])
+                if (txt) {
+                  return [{ text: txt, style: [`h${level}`, 'blockquote'], margin: [0, 4, 0, 8] }]
+                }
+                return []
               }
-            } else {
-              // 其他元素：使用inline处理
-              const inlineContent = inline([n])
-              if (inlineContent.length > 0) {
-                inner.push({ text: inlineContent, style: 'blockquote', margin: [0, 2, 0, 2] })
+              
+              case 'ul':
+              case 'ol': {
+                // 列表：递归处理并保持结构
+                const nestedList = await mapHastToPdfContent({ type: 'root', children: [child] } as any, ctx)
+                // 为引用块中的列表添加特殊样式和缩进
+                return nestedList.map((item: any) => ({
+                  ...item,
+                  margin: [8, 2, 0, 2],
+                  style: Array.isArray(item.style) ? [...item.style, 'blockquote'] : 
+                         item.style ? [item.style, 'blockquote'] : 'blockquote'
+                }))
+              }
+              
+              case 'blockquote': {
+                // 嵌套引用：递归处理
+                const nestedQuote = await mapHastToPdfContent({ type: 'root', children: [child] } as any, ctx)
+                return nestedQuote.map((item: any) => ({
+                  ...item,
+                  margin: [8, 2, 0, 2]
+                }))
+              }
+              
+              case 'table': {
+                // 表格：直接处理并添加引用样式
+                const tableElement = buildTableElement(child)
+                return [{
+                  ...tableElement,
+                  margin: [8, 4, 0, 8],
+                  style: Array.isArray(tableElement.style) ? [...tableElement.style, 'blockquote'] : 
+                         tableElement.style ? [tableElement.style, 'blockquote'] : 'blockquote'
+                }]
+              }
+              
+              case 'pre': {
+                // 代码块：保持格式
+                const txt = textFromChildren(child.children || [])
+                if (txt) {
+                  const codeBlock = createCodeBlockStyle(txt)
+                  return [{
+                    ...codeBlock,
+                    margin: [8, 4, 0, 8],
+                    style: Array.isArray(codeBlock.style) ? [...codeBlock.style, 'blockquote'] : 
+                           codeBlock.style ? [codeBlock.style, 'blockquote'] : 'blockquote'
+                  }]
+                }
+                return []
+              }
+              
+              case 'code': {
+                // 独立代码块
+                const txt = textFromChildren(child.children || [])
+                const isBlock = child.children?.some((c: any) => c.type === 'text' && (c.value || '').includes('\n'))
+                if (txt) {
+                  if (isBlock) {
+                    const codeBlock = createCodeBlockStyle(txt)
+                    return [{
+                      ...codeBlock,
+                      margin: [8, 4, 0, 8],
+                      style: Array.isArray(codeBlock.style) ? [...codeBlock.style, 'blockquote'] : 
+                             codeBlock.style ? [codeBlock.style, 'blockquote'] : 'blockquote'
+                    }]
+                  } else {
+                    return [{ text: txt, style: ['code', 'blockquote'], margin: [0, 2, 0, 2] }]
+                  }
+                }
+                return []
+              }
+              
+              case 'hr': {
+                // 分割线
+                return [{ ...createHrBorder(), margin: [8, 4, 0, 8] }]
+              }
+              
+              case 'img': {
+                // 图片
+                const src = child.properties?.src as string
+                const alt = (child.properties?.alt as string) || ''
+                try {
+                  const dataUrl = await imageResolver(src)
+                  return [{ image: dataUrl, margin: [8, 4, 0, 8] }]
+                } catch {
+                  if (alt) {
+                    return [{ text: alt, italics: true, color: '#666', style: 'blockquote', margin: [0, 2, 0, 2] }]
+                  }
+                }
+                return []
+              }
+              
+              default: {
+                // 其他元素：使用inline处理
+                const inlineContent = inline([child])
+                if (inlineContent.length > 0) {
+                  return [{ text: inlineContent, style: 'blockquote', margin: [0, 2, 0, 2] }]
+                }
+                return []
               }
             }
-          } else if (n.type === 'text') {
-            const val = String(n.value ?? '').trim()
-            if (val) inner.push({ text: val, style: 'blockquote', margin: [0, 2, 0, 2] })
+          } else if (child.type === 'text') {
+            const val = String(child.value ?? '').trim()
+            if (val) {
+              return [{ text: val, style: 'blockquote', margin: [0, 2, 0, 2] }]
+            }
           }
+          
+          return []
+        }
+        
+        // 处理所有子元素
+        for (const child of node.children || []) {
+          const childElements = await processBlockquoteChild(child)
+          inner.push(...childElements)
         }
 
-        // GitHub 样式：使用左边框 + 内容的布局
+        // 使用stack结构而不是table text，以支持复杂的块级元素
         if (inner.length > 0) {
           content.push({
             layout: 'blockquoteLayout',
@@ -551,7 +660,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
               body: [
                 [
                   {
-                    text: inner,
+                    stack: inner,
                   },
                 ],
               ],
@@ -688,36 +797,12 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                   if (alt) blocks.push({ text: alt, italics: true, color: '#666' })
                 }
               } else if (tag === 'blockquote') {
-                // 在列表项中处理 blockquote，支持嵌套格式
-                const inner: any[] = []
-                for (const n of child.children || []) {
-                  if (n.type === 'element') {
-                    const innerTag = n.tagName?.toLowerCase()
-                    if (innerTag === 'p' || innerTag === 'div') {
-                      // 段落：使用inline处理支持嵌套格式
-                      const inlineContent = inline(n.children || [])
-                      if (inlineContent.length > 0) {
-                        inner.push({ text: inlineContent, margin: [0, 2, 0, 2] })
-                      }
-                    } else {
-                      // 其他元素：使用inline处理
-                      const inlineContent = inline([n])
-                      if (inlineContent.length > 0) {
-                        inner.push({ text: inlineContent, margin: [0, 2, 0, 2] })
-                      }
-                    }
-                  } else if (n.type === 'text') {
-                    const val = String(n.value ?? '').trim()
-                    if (val) inner.push({ text: val, margin: [0, 2, 0, 2] })
-                  }
-                }
-                if (inner.length > 0) {
-                  blocks.push({ 
-                    stack: inner, 
-                    margin: [8, 4, 0, 8], 
-                    style: 'blockquote'
-                  })
-                }
+                // 在列表项中处理 blockquote，使用与主blockquote相同的逻辑
+                const nestedQuote = await mapHastToPdfContent({ type: 'root', children: [child] } as any, ctx)
+                blocks.push(...nestedQuote.map((item: any) => ({
+                  ...item,
+                  margin: [8, 4, 0, 8]
+                })))
               } else if (tag === 'table') {
                 blocks.push(buildTableElement(child))
               } else if (tag === 'pre' || tag === 'code') {
