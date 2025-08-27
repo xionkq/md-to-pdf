@@ -153,12 +153,24 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
       t === 'strike' ||
       t === 'del' ||
       t === 'u' ||
-      t === 'code' ||
       t === 'span' ||
       t === 'br' ||
       t === 'img' ||
       t === 'svg'
     )
+    // 注意：移除了 'code'，因为code标签可能是块级代码块或行内代码，需要单独判断
+  }
+
+  function isInlineCodeTag(node: any): boolean {
+    // 判断code标签是否为行内代码
+    if (!node || node.tagName?.toLowerCase() !== 'code') return false
+
+    // 如果包含换行符，则是块级代码
+    const hasNewline = (node.children || []).some((c: any) =>
+      c.type === 'text' && (c.value || '').includes('\n')
+    )
+
+    return !hasNewline
   }
 
   // 累积样式接口，支持样式叠加
@@ -186,7 +198,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
 
   function styleToObject(style: TextStyle, text: any): any {
     const result: any = { text }
-    
+
     if (style.bold) result.style = result.style ? [result.style, 'b'].flat() : 'b'
     if (style.italic) result.italics = true
     if (style.underline) result.style = result.style ? [result.style, 'u'].flat() : 'u'
@@ -196,18 +208,18 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
       result.link = style.link
       result.style = result.style ? [result.style, 'a'].flat() : 'a'
     }
-    
+
     // 处理自定义样式数组
     if (style.style && style.style.length > 0) {
       result.style = result.style ? [result.style, ...style.style].flat() : style.style
     }
-    
+
     return result
   }
 
   function inline(nodes: any[], baseStyle: TextStyle = {}): any[] {
     const parts: any[] = []
-    
+
     for (const n of nodes || []) {
       if (n.type === 'text') {
         const textValue = n.value ?? ''
@@ -222,7 +234,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
       } else if (n.type === 'element') {
         const tag = (n.tagName || '').toLowerCase()
         let currentStyle = { ...baseStyle }
-        
+
         // 根据标签添加样式
         switch (tag) {
           case 'strong':
@@ -265,7 +277,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
             parts.push({ svg: svgObjectToString(n) })
             continue
         }
-        
+
         // 递归处理子节点，传递累积的样式
         if (n.children && n.children.length > 0) {
           const nestedParts = inline(n.children, currentStyle)
@@ -287,7 +299,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
         }
       }
     }
-    
+
     return parts
   }
 
@@ -360,7 +372,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
               if (txt) parts.push(txt)
             }
           }
-          
+
           // 构建单元格内容，支持混合格式
           if (parts.length === 0) {
             cellContent = { text: '' }
@@ -506,12 +518,12 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
       case 'blockquote': {
         // 处理引用嵌套，支持完整的块级元素
         const inner: any[] = []
-        
+
         // 递归处理引用块中的每个子元素
         const processBlockquoteChild = async (child: any): Promise<any[]> => {
           if (child.type === 'element') {
             const tag = child.tagName?.toLowerCase()
-            
+
             switch (tag) {
               case 'p':
               case 'div': {
@@ -522,7 +534,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                 }
                 return []
               }
-              
+
               case 'h1':
               case 'h2':
               case 'h3':
@@ -537,7 +549,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                 }
                 return []
               }
-              
+
               case 'ul':
               case 'ol': {
                 // 列表：递归处理并保持结构
@@ -546,11 +558,11 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                 return nestedList.map((item: any) => ({
                   ...item,
                   margin: [8, 2, 0, 2],
-                  style: Array.isArray(item.style) ? [...item.style, 'blockquote'] : 
+                  style: Array.isArray(item.style) ? [...item.style, 'blockquote'] :
                          item.style ? [item.style, 'blockquote'] : 'blockquote'
                 }))
               }
-              
+
               case 'blockquote': {
                 // 嵌套引用：递归处理
                 const nestedQuote = await mapHastToPdfContent({ type: 'root', children: [child] } as any, ctx)
@@ -559,18 +571,18 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                   margin: [8, 2, 0, 2]
                 }))
               }
-              
+
               case 'table': {
                 // 表格：直接处理并添加引用样式
                 const tableElement = buildTableElement(child)
                 return [{
                   ...tableElement,
                   margin: [8, 4, 0, 8],
-                  style: Array.isArray(tableElement.style) ? [...tableElement.style, 'blockquote'] : 
+                  style: Array.isArray(tableElement.style) ? [...tableElement.style, 'blockquote'] :
                          tableElement.style ? [tableElement.style, 'blockquote'] : 'blockquote'
                 }]
               }
-              
+
               case 'pre': {
                 // 代码块：保持格式
                 const txt = textFromChildren(child.children || [])
@@ -579,13 +591,13 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                   return [{
                     ...codeBlock,
                     margin: [8, 4, 0, 8],
-                    style: Array.isArray(codeBlock.style) ? [...codeBlock.style, 'blockquote'] : 
+                    style: Array.isArray(codeBlock.style) ? [...codeBlock.style, 'blockquote'] :
                            codeBlock.style ? [codeBlock.style, 'blockquote'] : 'blockquote'
                   }]
                 }
                 return []
               }
-              
+
               case 'code': {
                 // 独立代码块
                 const txt = textFromChildren(child.children || [])
@@ -596,7 +608,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                     return [{
                       ...codeBlock,
                       margin: [8, 4, 0, 8],
-                      style: Array.isArray(codeBlock.style) ? [...codeBlock.style, 'blockquote'] : 
+                      style: Array.isArray(codeBlock.style) ? [...codeBlock.style, 'blockquote'] :
                              codeBlock.style ? [codeBlock.style, 'blockquote'] : 'blockquote'
                     }]
                   } else {
@@ -605,12 +617,12 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                 }
                 return []
               }
-              
+
               case 'hr': {
                 // 分割线
                 return [{ ...createHrBorder(), margin: [8, 4, 0, 8] }]
               }
-              
+
               case 'img': {
                 // 图片
                 const src = child.properties?.src as string
@@ -625,7 +637,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                 }
                 return []
               }
-              
+
               default: {
                 // 其他元素：使用inline处理
                 const inlineContent = inline([child])
@@ -641,10 +653,10 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
               return [{ text: val, style: 'blockquote', margin: [0, 2, 0, 2] }]
             }
           }
-          
+
           return []
         }
-        
+
         // 处理所有子元素
         for (const child of node.children || []) {
           const childElements = await processBlockquoteChild(child)
@@ -746,7 +758,11 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
             }
             if (child.type === 'element') {
               const tag = (child.tagName || '').toLowerCase()
-              if (isInlineTag(tag)) {
+              // 特殊处理code标签：如果是行内代码，则视为内联标签
+              if (tag === 'code' && isInlineCodeTag(child)) {
+                appendInlineSegments(inline([child] as any))
+                continue
+              } else if (isInlineTag(tag)) {
                 appendInlineSegments(inline([child] as any))
                 continue
               }
@@ -805,9 +821,25 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                 })))
               } else if (tag === 'table') {
                 blocks.push(buildTableElement(child))
-              } else if (tag === 'pre' || tag === 'code') {
+              } else if (tag === 'pre') {
+                // pre标签一定是代码块，使用完整的代码块样式
                 const txt = textFromChildren(child.children || [])
-                blocks.push({ text: txt, style: 'code', preserveLeadingSpaces: true, margin: [0, 4, 0, 8] })
+                if (txt) {
+                  blocks.push(createCodeBlockStyle(txt))
+                }
+              } else if (tag === 'code') {
+                // code标签需要判断是否为块级代码块
+                const txt = textFromChildren(child.children || [])
+                const isBlock = child.children?.some((c: any) => c.type === 'text' && (c.value || '').includes('\n'))
+                if (txt) {
+                  if (isBlock) {
+                    // 块级代码，使用代码块样式
+                    blocks.push(createCodeBlockStyle(txt))
+                  } else {
+                    // 行内代码，使用简单样式但保持适当的边距
+                    blocks.push({ text: txt, style: 'code', preserveLeadingSpaces: true, margin: [0, 2, 0, 2] })
+                  }
+                }
               } else if (tag === 'hr') {
                 blocks.push(createHrBorder())
               }
