@@ -582,7 +582,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                          tableElement.style ? [tableElement.style, 'blockquote'] : 'blockquote'
                 }]
               }
-
+              // TODO: 引用中嵌套代码块时，导致字体大小会使用引用的而非代码块的
               case 'pre': {
                 // 代码块：保持格式
                 const txt = textFromChildren(child.children || [])

@@ -26,8 +26,8 @@
 - 计划：
   - 默认样式对齐 GitHub Markdown（已完成）
   - 思考图片处理方案（已完成）
-  - 支持 markdown 中嵌套 html
-  - 参考 html-to-pdfmake 做好标签支持，主要在于标签嵌套
+  - 支持 markdown 中嵌套 html（已完成）
+  - 参考 html-to-pdfmake 做好标签支持，主要在于标签嵌套（已完成）
   - 支持受限样式映射，行内 style 白名单 → pdfmake 样式
   - 补充测试：HAST 嵌套、样式白名单、空白处理一致性
   - 处理代码块标签，颜色高亮等

@@ -19,6 +19,6 @@ export async function loadDefaultCjkFont(options: DefaultCjkOptions = {}): Promi
   const name = options.name ?? 'NotoSansSC'
   const normal = options.url ?? DEFAULT_CJK_FONT_URL
   const bold = options.boldUrl ?? DEFAULT_CJK_BOLD_FONT_URL
-  const urls: FontUrlSet = { normal, bold }
+  const urls: FontUrlSet = { normal, bold, italics: normal, bolditalics: bold }
   return buildFontResourceFromUrls(name, urls, options.requestInit)
 }
