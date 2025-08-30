@@ -4,7 +4,7 @@ import { createDefaultStyles } from '../styles'
 
 export function buildDocDefinition(content: any[], options: MarkdownToPdfOptions): TDocumentDefinitions {
   // 组合 pdfmake 文档定义：页面设置、内容与样式
-  const styles = createDefaultStyles(options.theme)
+  const styles = createDefaultStyles()
   const doc: TDocumentDefinitions = {
     pageSize: (options.pageSize as any) ?? 'A4',
     pageMargins: options.pageMargins ?? [40, 60, 40, 60],

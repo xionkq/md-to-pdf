@@ -25,7 +25,7 @@ export interface ThemeOptions {
  * 创建与 GitHub Markdown 样式对齐的默认样式
  * 参考 GitHub Primer CSS 和 markdown-body 样式规范
  */
-export function createDefaultStyles(theme: ThemeOptions = {}): StyleDictionary {
+export function createDefaultStyles(): StyleDictionary {
   return {
     // 一二级标题下边距为到下横线的距离，16px 的边距在下横线上
     h1: { fontSize: 28, bold: true, marginBottom: 8.4 },

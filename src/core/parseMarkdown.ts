@@ -2,16 +2,6 @@ import type { Processor } from 'unified'
 
 export type AstFlavor = 'mdast' | 'hast'
 
-export interface HtmlOptions {
-  enableHtml?: boolean
-  sanitize?: {
-    allowedTags?: string[]
-    allowedAttributes?: Record<string, string[]>
-    allowedStyles?: Record<string, string[]>
-    allowedSchemes?: string[]
-  }
-}
-
 // 解析结果：返回 remark AST（mdast）或 HAST（当启用 HTML）
 export interface ParseResult<T = any> {
   tree: T
@@ -35,7 +25,7 @@ async function getMdProcessor(): Promise<Processor> {
   return cachedMdProcessor
 }
 
-async function getHtmlProcessor(options: HtmlOptions = {}): Promise<Processor> {
+async function getHtmlProcessor(): Promise<Processor> {
   if (cachedHtmlProcessor) return cachedHtmlProcessor
   const [
     { unified },
@@ -43,49 +33,32 @@ async function getHtmlProcessor(options: HtmlOptions = {}): Promise<Processor> {
     { default: remarkGfm },
     { default: remarkRehype },
     { default: rehypeRaw },
-    rehypeSanitizeModule,
   ] = await Promise.all([
     import('unified'),
     import('remark-parse'),
     import('remark-gfm'),
     import('remark-rehype'),
     import('rehype-raw'),
-    import('rehype-sanitize') as any,
   ])
 
-  // const rehypeSanitize = (rehypeSanitizeModule as any).default ?? rehypeSanitizeModule
-  const defaultSchema = (rehypeSanitizeModule as any).defaultSchema ?? (rehypeSanitizeModule as any).schema
-
-  // 允许危险 HTML 先进入 HAST，然后 rehype-raw 解析，再 sanitize 过滤
-  const { buildSanitizeSchema } = await import('../utils/sanitize')
-  const schema = buildSanitizeSchema(defaultSchema as any, {
-    allowedTags: options.sanitize?.allowedTags,
-    allowedAttributes: options.sanitize?.allowedAttributes,
-    allowedStyles: options.sanitize?.allowedStyles,
-    allowedSchemes: options.sanitize?.allowedSchemes,
-  })
-
-  cachedHtmlProcessor = (unified() as any)
+  cachedHtmlProcessor = unified()
     .use(remarkParse as any)
     .use(remarkGfm as any)
     .use(remarkRehype as any, { allowDangerousHtml: true })
     .use(rehypeRaw as any)
-  // .use(rehypeSanitize as any, schema)
-  return cachedHtmlProcessor!
+  return cachedHtmlProcessor
 }
 
 // 解析 Markdown 字符串为 AST
-export async function parseMarkdown(markdown: string, htmlOptions: HtmlOptions = {}): Promise<ParseResult> {
-  if (!htmlOptions.enableHtml) {
-    const processor = await getMdProcessor()
-    const tree = processor.parse(markdown)
-    return { tree, flavor: 'mdast' }
+export async function parseMarkdown(markdown: string, enableHtml?: boolean): Promise<ParseResult> {
+  const mdast = (await getMdProcessor()).parse(markdown)
+
+  if (!enableHtml) {
+    return { tree: mdast, flavor: 'mdast' }
   }
 
-  // HTML 分支：remark → rehype（HAST），包含 raw + sanitize
-  const processor = await getHtmlProcessor(htmlOptions)
-  const mdast = (await getMdProcessor()).parse(markdown)
-  console.log('mdast', mdast)
-  const tree = await processor.run(mdast as any)
-  return { tree, flavor: 'hast' }
+  // HTML 分支
+  const processor = await getHtmlProcessor()
+  const hast = await processor.run(mdast as any)
+  return { tree: hast, flavor: 'hast' }
 }

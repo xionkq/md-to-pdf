@@ -41,10 +41,9 @@ export interface RegisteredFonts {
   fontsDef: Record<string, any>
 }
 
-export function registerFonts(pdfMakeRuntime: any, options: MarkdownToPdfOptions): RegisteredFonts | null {
+export function registerFonts(pdfMakeRuntime: any, fonts?: FontResource[]): RegisteredFonts | null {
   // 若调用方未提供字体，则不进行注册
-  const fonts = options.fonts ?? []
-  if (!fonts.length) return null
+  if (!fonts || !fonts.length) return null
 
   const allVfs: Record<string, string> = {}
   for (const f of fonts) Object.assign(allVfs, buildVfsForFont(f))
