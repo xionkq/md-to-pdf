@@ -70,7 +70,7 @@ Since pdfmake only supports base64 format for image nodes, your source markdown 
 ```markdown
 <img src="data:image/jpeg;base64,/9j/4AAQ...">
 or
-[html-to-pdfmake](data:image/jpeg;base64,/9j/4AAQ...)
+[my image](data:image/jpeg;base64,/9j/4AAQ...)
 ```
 
 You can also use URLs as image format, md-to-pdf will automatically convert them to base64, for example:

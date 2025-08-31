@@ -70,7 +70,7 @@ await downloadPdf('# Title\n\nContent', 'doc.pdf');
 ```markdown
 <img src="data:image/jpeg;base64,/9j/4AAQ...">
 or
-[html-to-pdfmake](data:image/jpeg;base64,/9j/4AAQ...)
+[my image](data:image/jpeg;base64,/9j/4AAQ...)
 ```
 
 你也可以使用 url 作为图片格式，md-to-pdf 会默认将其转为 base64，例如：
