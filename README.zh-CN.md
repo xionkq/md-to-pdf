@@ -1,4 +1,4 @@
-# md-to-pdf
+# @xionkq/md-to-pdf
 
 将 Markdown 字符串转换为文本可选择/搜索的 PDF，浏览器端可用，TypeScript 实现，适配 Vue/React 等前端项目。
 
@@ -18,6 +18,20 @@
 [demo]().
 
 ## 快速入门（TODO）
+
+安装:
+
+```bash
+npm i @xionkq/md-to-pdf
+```
+
+基础用法:
+
+```ts
+import { downloadPdf } from '@xionkq/md-to-pdf';
+
+await downloadPdf('# Title\n\nContent', 'doc.pdf');
+```
 
 ## 支持的标签和语法
 

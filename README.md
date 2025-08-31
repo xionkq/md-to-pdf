@@ -1,69 +1,96 @@
-### md-to-pdf
+# @xionkq/md-to-pdf
 
-将 Markdown 字符串转换为文本可选择/搜索的 PDF（非截图），浏览器端可用，TypeScript 实现，适配 Vue/React 等前端项目。
+Convert Markdown strings to text-searchable/selectable PDF (not screenshots), usable in browsers, implemented in TypeScript, compatible with Vue/React and other frontend projects.
 
-安装（待发布到 npm 后）：
+**Note**: If you need to convert complex markdown, consider server-side implementations like [md-to-pdf](https://github.com/simonhaenisch/md-to-pdf); or convert to HTML first and use browser printing: [md2pdf](https://github.com/realdennis/md2pdf).
+
+## Features
+
+- One-click conversion from md format strings to PDF with download
+- Uses GitHub markdown styles as theme
+- Works in browser environments
+- Supports element nesting
+- Supports markdown and HTML syntax
+- Supports Chinese fonts
+
+## Online Demo (TODO)
+
+[demo]().
+
+## Quick Start
+
+Install:
 
 ```bash
-npm i @your-scope/md-to-pdf
+npm i @xionkq/md-to-pdf
 ```
 
-使用：
+Basic usage:
 
 ```ts
-import { downloadPdf } from '@your-scope/md-to-pdf';
+import { downloadPdf } from '@xionkq/md-to-pdf';
 
-await downloadPdf('# 标题\n\n内容', 'doc.pdf');
+await downloadPdf('# Title\n\nContent', 'doc.pdf');
 ```
 
-更多需求、设计与规划见 `docs/requirements.md` 与 `docs/outline.md`。
+## Supported Tags and Syntax
 
-默认中文字体：
-- 当文档包含 CJK 字符且未提供 `fonts/defaultFont` 时，库会尝试通过公共 CDN 加载一个默认中文字体（Noto Sans SC Regular）。
-- 若不希望联网或需自定义，建议自行提供 `fonts` 与 `defaultFont`，或在构建时替换默认 URL。
+### HTML Tags
 
-字体注入（中文示例）：
+#### Block Elements
+- `<div>`, `<p>`, `<h1>` to `<h6>`
+- `<table>`, `<thead>`, `<tbody>`, `<tfoot>`, `<tr>`, `<th>`, `<td>`
+- `<ul>`, `<ol>`, `<li>`
+- `<pre>`
+- `<blockquote>`
 
-```ts
-import { downloadPdf } from '@your-scope/md-to-pdf';
+#### Inline Elements
+- `<span>`, `<strong>`, `<b>`, `<em>`, `<i>`, `<s>`
+- `<a>` (with support for external and internal links)
+- `<sub>`, `<sup>`
+- `<img>`, `<svg>`
+- `<br>`, `<hr>`
+- `<code>`
 
-// 假设你通过 fetch/loader 得到 ArrayBuffer 或 base64
-const fontBuffer = await fetch('https://your-cdn/fonts/NotoSansSC-Regular.subset.ttf').then(r => r.arrayBuffer());
+### Markdown Syntax
+- Same as above
 
-await downloadPdf('# 标题\n\n这是一段中文文本', 'cn.pdf', {
-  fonts: [{
-    name: 'NotoSansSC',
-    normal: fontBuffer,
-  }],
-  defaultFont: 'NotoSansSC'
-});
+## Unsupported Syntax
+
+- Chinese italic text is not supported (NotoSansSC doesn't have italic fonts)
+
+## Configuration Options (TODO)
+
+## Special Notes
+
+### Using Images
+
+Since pdfmake only supports base64 format for image nodes, your source markdown files should preferably use base64 format images, for example:
+
+```markdown
+<img src="data:image/jpeg;base64,/9j/4AAQ...">
+or
+[html-to-pdfmake](data:image/jpeg;base64,/9j/4AAQ...)
 ```
 
+You can also use URLs as image format, md-to-pdf will automatically convert them to base64, for example:
 
-### ✨ GitHub 样式对齐 (v0.2.0)
+```markdown
+<img src="https://example.com/image.jpg" alt="my image">
+or
+[my image](https://example.com/image.jpg)
+```
 
-现已支持与 GitHub Markdown 完全对齐的样式：
+However, when the image URL is not same-origin with your application, it will likely trigger CORS restrictions. In this case, you need to define an imageReserver function in your application to convert to base64 and pass it in the configuration, see examples (TODO); or adjust your server to allow cross-origin requests.
 
-- **标题样式**：H1/H2 底部边框，GitHub 标准字号和间距
-- **代码块**：GitHub 标准背景色 (#f6f8fa) 和内边距
-- **表格**：表头背景色，标准边框和单元格内边距
-- **引用块**：左侧彩色边框 (#d0d7de)，灰色文字
-- **链接**：GitHub 蓝色 (#0969da)
-- **完整配色方案**：与 GitHub.com 保持一致
+### Chinese Fonts
 
-查看完整样式演示：`examples/github-styles-demo.md`
+When Chinese characters are detected in the string, NotoSansSC will automatically be used as the Chinese font.
 
-### 路线图（下一步）
+## Roadmap
+- Custom fonts
+- Recognize inline styles
 
-- ✅ ~~默认样式向 GitHub Markdown 靠拢（blockquote、code、table 等）~~
-- 受限样式映射：解析 HTML 行内 style 白名单并映射到 pdfmake
-- 代码语法高亮（集成 Shiki）
-- 数学公式支持（KaTeX）
+## Credits
 
-### 使用图片
-
-由于 pdfmake 仅支持在 image 节点中使用 base64 作为图片格式，因此你的源 markdown 文件应尽可能使用 base64 格式的图片，例如：
-
-若使用 url 作为图片格式，md-to-pdf 会默认将其转为 base64，例如：
-
-但当图片 url 和你的应用程序不同源，则大概率会触发跨域限制，此时需要在你的应用程序中定义 imageReserver 函数用于转换 base64，并将其传入配置中，参考示例
+Many tag and style implementations reference [html-to-pdfmake](https://github.com/Aymkdn/html-to-pdfmake)
