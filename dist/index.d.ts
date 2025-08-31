@@ -1,3 +1,30 @@
+type AstFlavor = 'mdast' | 'hast';
+interface ParseResult<T = any> {
+    tree: T;
+    flavor: AstFlavor;
+}
+declare function parseMarkdown(markdown: string, enableHtml?: boolean): Promise<ParseResult>;
+
+type PdfContent$1 = any[];
+interface NodeBase {
+    type: string;
+    [key: string]: any;
+}
+interface MapContext$1 {
+    imageResolver?: (src: string) => Promise<string>;
+}
+declare function mapRemarkToPdfContent(tree: NodeBase, ctx?: MapContext$1): Promise<PdfContent$1>;
+
+type PdfContent = any[];
+interface HastNodeBase {
+    type: string;
+    [key: string]: any;
+}
+interface MapContext {
+    imageResolver?: (src: string) => Promise<string>;
+}
+declare function mapHastToPdfContent(tree: HastNodeBase, ctx?: MapContext): Promise<PdfContent>;
+
 /**
  * 核心导出：对外暴露的类型与 API。该文件串联解析、映射与 pdfmake 生成流程。
  * 设计目标：
@@ -19,32 +46,13 @@ interface MarkdownToPdfOptions {
     pageSize?: PageSize;
     pageMargins?: [number, number, number, number];
     pageOrientation?: 'portrait' | 'landscape';
-    defaultFont?: string;
-    fonts?: FontResource[];
     /** For testing or advanced usage: provide a custom pdfMake instance */
     pdfMakeInstance?: any;
-    theme?: {
-        baseFontSize?: number;
-        headingFontSizes?: number[];
-        code?: {
-            font?: string;
-            fontSize?: number;
-            background?: string;
-        };
-        linkColor?: string;
-        table?: {
-            headerFill?: string;
-            borderColor?: string;
-        };
-    };
     enableHtml?: boolean;
     header?: (currentPage: number, pageCount: number) => any;
     footer?: (currentPage: number, pageCount: number) => any;
-    toc?: boolean;
     imageResolver?: (src: string) => Promise<string>;
     onProgress?: (phase: 'parse' | 'layout' | 'emit') => void;
-    debug?: boolean;
-    locale?: 'zh' | 'en' | string;
 }
 interface MarkdownPdfResult {
     blob: Blob;
@@ -52,9 +60,10 @@ interface MarkdownPdfResult {
 }
 declare function markdownToPdf(markdown: string, options?: MarkdownToPdfOptions): Promise<MarkdownPdfResult>;
 declare function downloadPdf(markdown: string, fileName: string, options?: MarkdownToPdfOptions): Promise<void>;
+
 declare const _default: {
     markdownToPdf: typeof markdownToPdf;
     downloadPdf: typeof downloadPdf;
 };
 
-export { type FontResource, type MarkdownPdfResult, type MarkdownToPdfOptions, type PageSize, _default as default, downloadPdf, markdownToPdf };
+export { type FontResource, type MarkdownPdfResult, type MarkdownToPdfOptions, type PageSize, _default as default, downloadPdf, mapHastToPdfContent, mapRemarkToPdfContent, markdownToPdf, parseMarkdown };

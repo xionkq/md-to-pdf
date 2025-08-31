@@ -1,5 +1,5 @@
 {
-  "name": "md-to-pdf",
+  "name": "@xionkq/md-to-pdf",
   "version": "0.1.0",
   "description": "Markdown to PDF (text-preserving) for browsers, TypeScript, framework-agnostic, Vue-ready.",
   "homepage": "https://github.com/xionkq/md-to-pdf#readme",
@@ -10,23 +10,27 @@
     "type": "git",
     "url": "git+https://github.com/xionkq/md-to-pdf.git"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "license": "MIT",
-  "author": "",
+  "author": "xionkq",
   "type": "module",
-  "main": "dist/index.cjs",
+  "main": "dist/index.js",
   "module": "dist/index.js",
-  "unpkg": "dist/index.global.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": "./dist/index.js"
     }
   },
   "sideEffects": false,
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsup src/index.ts --dts --format esm,cjs,iife --global-name MdToPdf --clean",
-    "dev": "tsup src/index.ts --watch --dts --format esm,cjs,iife --global-name MdToPdf",
+    "build": "tsup src/index.ts --dts --format esm --clean",
+    "dev": "tsup src/index.ts --watch --dts --format esm",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "echo 'no linter configured'",

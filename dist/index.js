@@ -11,46 +11,32 @@ async function getMdProcessor() {
   cachedMdProcessor = unified().use(remarkParse).use(remarkGfm);
   return cachedMdProcessor;
 }
-async function getHtmlProcessor(options = {}) {
+async function getHtmlProcessor() {
   if (cachedHtmlProcessor) return cachedHtmlProcessor;
   const [
     { unified },
     { default: remarkParse },
     { default: remarkGfm },
     { default: remarkRehype },
-    { default: rehypeRaw },
-    rehypeSanitizeModule
+    { default: rehypeRaw }
   ] = await Promise.all([
     import("unified"),
     import("remark-parse"),
     import("remark-gfm"),
     import("remark-rehype"),
-    import("rehype-raw"),
-    import("rehype-sanitize")
+    import("rehype-raw")
   ]);
-  const rehypeSanitize = rehypeSanitizeModule.default ?? rehypeSanitizeModule;
-  const defaultSchema = rehypeSanitizeModule.defaultSchema ?? rehypeSanitizeModule.schema;
-  const { buildSanitizeSchema } = await import("./sanitize-AL2JNHLC.js");
-  const schema = buildSanitizeSchema(defaultSchema, {
-    allowedTags: options.sanitize?.allowedTags,
-    allowedAttributes: options.sanitize?.allowedAttributes,
-    allowedStyles: options.sanitize?.allowedStyles,
-    allowedSchemes: options.sanitize?.allowedSchemes
-  });
-  cachedHtmlProcessor = unified().use(remarkParse).use(remarkGfm).use(remarkRehype, { allowDangerousHtml: true }).use(rehypeRaw).use(rehypeSanitize, schema);
+  cachedHtmlProcessor = unified().use(remarkParse).use(remarkGfm).use(remarkRehype, { allowDangerousHtml: true }).use(rehypeRaw);
   return cachedHtmlProcessor;
 }
-async function parseMarkdown(markdown, htmlOptions = {}) {
-  if (!htmlOptions.enableHtml) {
-    const processor2 = await getMdProcessor();
-    const tree2 = processor2.parse(markdown);
-    return { tree: tree2, flavor: "mdast" };
-  }
-  const processor = await getHtmlProcessor(htmlOptions);
+async function parseMarkdown(markdown, enableHtml) {
   const mdast = (await getMdProcessor()).parse(markdown);
-  console.log("mdast", mdast);
-  const tree = await processor.run(mdast);
-  return { tree, flavor: "hast" };
+  if (!enableHtml) {
+    return { tree: mdast, flavor: "mdast" };
+  }
+  const processor = await getHtmlProcessor();
+  const hast = await processor.run(mdast);
+  return { tree: hast, flavor: "hast" };
 }
 
 // src/styles/github-borders.ts
@@ -63,12 +49,12 @@ function createH1Border(pageWidth = 515) {
         y1: 0,
         x2: pageWidth,
         y2: 0,
-        lineWidth: 2,
+        lineWidth: 1,
         lineColor: "#d1d9e0"
       }
     ],
-    margin: [0, 8, 0, 0]
-    // 顶部间距
+    margin: [0, 0, 0, 16]
+    // 底部间距
   };
 }
 function createH2Border(pageWidth = 515) {
@@ -84,8 +70,25 @@ function createH2Border(pageWidth = 515) {
         lineColor: "#d1d9e0"
       }
     ],
-    margin: [0, 8, 0, 0]
-    // 顶部间距
+    margin: [0, 0, 0, 16]
+    // 底部间距
+  };
+}
+function createHrBorder(pageWidth = 515) {
+  return {
+    canvas: [
+      {
+        type: "line",
+        x1: 0,
+        y1: 0,
+        x2: pageWidth,
+        y2: 0,
+        lineWidth: 3.5,
+        lineColor: "#d1d9e0"
+      }
+    ],
+    margin: [0, 0, 0, 24]
+    // 底部间距
   };
 }
 function createBlockquoteBorder(height = 20) {
@@ -121,16 +124,20 @@ function createTableLayout() {
       return "#d1d9e0";
     },
     paddingLeft: function(i, node) {
-      return 8;
+      return 13;
     },
     paddingRight: function(i, node) {
-      return 8;
+      return 13;
     },
     paddingTop: function(i, node) {
       return 6;
     },
     paddingBottom: function(i, node) {
       return 6;
+    },
+    fillColor: function(i) {
+      if (i === 0) return null;
+      return i % 2 === 0 ? "#f6f8fa" : null;
     }
   };
 }
@@ -138,22 +145,26 @@ function createCodeBlockStyle(content) {
   return {
     table: {
       widths: ["*"],
-      body: [[{
-        text: content,
-        style: "codeBlock",
-        border: [false, false, false, false]
-        // 禁用表格边框
-      }]]
+      body: [
+        [
+          {
+            text: content,
+            border: [false, false, false, false]
+            // 禁用表格边框
+          }
+        ]
+      ]
     },
     layout: {
       hLineWidth: () => 0,
       vLineWidth: () => 0,
-      paddingLeft: () => 12,
-      paddingRight: () => 12,
-      paddingTop: () => 8,
-      paddingBottom: () => 8
+      paddingLeft: () => 16,
+      paddingRight: () => 16,
+      paddingTop: () => 16,
+      paddingBottom: () => 16,
+      fillColor: "#f0f1f2"
     },
-    margin: [0, 8, 0, 16]
+    style: "codeBlock"
   };
 }
 
@@ -228,7 +239,8 @@ async function mapRemarkToPdfContent(tree, ctx = {}) {
       case "blockquote": {
         const inner = [];
         for (const n of node.children || []) {
-          if (n.type === "paragraph") inner.push({ text: inline(n.children || []), style: "blockquote", margin: [0, 2, 0, 2] });
+          if (n.type === "paragraph")
+            inner.push({ text: inline(n.children || []), style: "blockquote", margin: [0, 2, 0, 2] });
           else await visit(n);
         }
         content.push({
@@ -388,132 +400,92 @@ async function mapRemarkToPdfContent(tree, ctx = {}) {
 }
 
 // src/styles.ts
-function createDefaultStyles(theme = {}) {
-  const base = theme.baseFontSize ?? 12;
-  const headingSizes = theme.headingFontSizes ?? [
-    Math.round(base * 2),
-    // H1: 24px (2.0x)
-    Math.round(base * 1.5),
-    // H2: 18px (1.5x)
-    Math.round(base * 1.25),
-    // H3: 15px (1.25x)
-    Math.round(base * 1),
-    // H4: 12px (1.0x)
-    Math.round(base * 0.875),
-    // H5: 10.5px (0.875x)
-    Math.round(base * 0.85)
-    // H6: 10.2px (0.85x)
-  ];
-  const linkColor = theme.linkColor ?? "#0969da";
-  const codeFontSize = theme.code?.fontSize ?? base - 1;
-  const codeBackground = theme.code?.background ?? "#f6f8fa";
-  const codeBorderColor = theme.code?.borderColor ?? "#d1d9e0";
-  const blockquoteBorderColor = theme.blockquote?.borderColor ?? "#d0d7de";
-  const blockquoteTextColor = theme.blockquote?.textColor ?? "#656d76";
-  const tableHeaderFill = theme.table?.headerFill ?? "#f6f8fa";
-  const tableBorderColor = theme.table?.borderColor ?? "#d1d9e0";
-  const tableCellPadding = theme.table?.cellPadding ?? 6;
+function createDefaultStyles() {
   return {
-    // 段落：GitHub 行高和间距
-    paragraph: {
-      fontSize: base,
-      lineHeight: 1.6,
-      // GitHub 使用 1.6 行高
-      margin: [0, 6, 0, 10]
-    },
-    // 链接：GitHub 蓝色，悬停时下划线
-    link: {
-      color: linkColor,
-      decoration: "underline"
-    },
-    // 行内代码：GitHub 样式
-    code: {
-      fontSize: codeFontSize,
-      background: codeBackground,
-      color: "#1f2328",
-      // GitHub 代码文字色
-      margin: [2, 0, 2, 0]
-      // 行内代码的小边距
-    },
-    // 代码块：GitHub 样式，更大的内边距
-    codeBlock: {
-      fontSize: codeFontSize,
-      background: codeBackground,
-      color: "#1f2328",
-      margin: [0, 8, 0, 16]
-      // 注意：pdfmake 不直接支持 border，我们可能需要用其他方法实现边框
-    },
-    // 标题样式：参考 GitHub Markdown
-    h1: {
-      fontSize: headingSizes[0],
-      bold: true,
-      color: "#1f2328",
-      margin: [0, 0, 0, 16]
-      // 底部更大间距
-      // GitHub H1 有底部边框，但 pdfmake 需要特殊处理
-    },
-    h2: {
-      fontSize: headingSizes[1],
-      bold: true,
-      color: "#1f2328",
-      margin: [0, 24, 0, 16]
-      // 顶部间距增加
-      // GitHub H2 也有底部细线
-    },
-    h3: {
-      fontSize: headingSizes[2],
-      bold: true,
-      color: "#1f2328",
-      margin: [0, 20, 0, 12]
-    },
-    h4: {
-      fontSize: headingSizes[3],
-      bold: true,
-      color: "#1f2328",
-      margin: [0, 16, 0, 8]
-    },
-    h5: {
-      fontSize: headingSizes[4],
-      bold: true,
-      color: "#656d76",
-      // H5/H6 使用灰色
-      margin: [0, 16, 0, 8]
-    },
-    h6: {
-      fontSize: headingSizes[5],
-      bold: true,
-      color: "#656d76",
-      margin: [0, 16, 0, 8]
-    },
+    // 一二级标题下边距为到下横线的距离，16px 的边距在下横线上
+    h1: { fontSize: 28, bold: true, marginBottom: 8.4 },
+    h2: { fontSize: 21, bold: true, marginBottom: 6.3 },
+    h3: { fontSize: 17.5, bold: true, marginBottom: 16 },
+    h4: { fontSize: 14, bold: true, marginBottom: 16 },
+    h5: { fontSize: 12.25, bold: true, marginBottom: 16 },
+    h6: { fontSize: 11.9, color: "#59636e", bold: true, marginBottom: 16 },
+    p: { fontSize: 14, margin: [0, 0, 0, 16] },
     // 引用块样式：GitHub blockquote
-    blockquote: {
-      fontSize: base,
-      color: blockquoteTextColor,
-      lineHeight: 1.6,
-      margin: [16, 8, 0, 16]
-      // 左侧间距用于边框效果
-      // 左边框需要特殊实现
+    blockquote: { fontSize: 14, color: "#59636e", marginBottom: 16 },
+    a: { color: "#0969da", decoration: "underline" },
+    ul: { marginBottom: 16, marginLeft: 12 },
+    ol: { marginBottom: 16, marginLeft: 12 },
+    del: { decoration: "lineThrough" },
+    b: { bold: true },
+    table: { marginBottom: 16 },
+    th: { bold: true },
+    // 行内代码
+    code: { background: "#f0f1f2" },
+    // 代码块
+    codeBlock: { fontSize: 11.9, margin: [0, 0, 0, 16] },
+    // TODO: 待支持
+    u: { decoration: "underline" },
+    em: { italics: true },
+    i: { italics: true }
+  };
+}
+function createLayout() {
+  return {
+    // 使用表格布局模拟 blockquote
+    blockquoteLayout: {
+      hLineWidth: function() {
+        return 0;
+      },
+      vLineWidth: function(i) {
+        return i === 0 ? 3 : 0;
+      },
+      vLineColor: function() {
+        return "#d1d9e0";
+      },
+      paddingLeft: function() {
+        return 14;
+      },
+      paddingRight: function() {
+        return 14;
+      }
     },
-    // 表格样式配置
-    tableHeader: {
-      fontSize: base,
-      bold: true,
-      fillColor: tableHeaderFill,
-      color: "#1f2328",
-      margin: [tableCellPadding, tableCellPadding, tableCellPadding, tableCellPadding]
-    },
-    tableCell: {
-      fontSize: base,
-      color: "#1f2328",
-      lineHeight: 1.6,
-      margin: [tableCellPadding, tableCellPadding, tableCellPadding, tableCellPadding]
+    // createLayout
+    tableLayout: {
+      hLineWidth: function(i, node) {
+        return 1;
+      },
+      vLineWidth: function(i, node) {
+        return 1;
+      },
+      hLineColor: function(i, node) {
+        return "#d1d9e0";
+      },
+      vLineColor: function(i, node) {
+        return "#d1d9e0";
+      },
+      paddingLeft: function(i, node) {
+        return 13;
+      },
+      paddingRight: function(i, node) {
+        return 13;
+      },
+      paddingTop: function(i, node) {
+        return 6;
+      },
+      paddingBottom: function(i, node) {
+        return 6;
+      },
+      fillColor: function(i) {
+        if (i === 0) return null;
+        return i % 2 === 0 ? "#f6f8fa" : null;
+      }
     }
   };
 }
 
 // src/pdf/builder.ts
 function buildDocDefinition(content, options) {
-  const styles = createDefaultStyles(options.theme);
+  const styles = createDefaultStyles();
   const doc = {
     pageSize: options.pageSize ?? "A4",
     pageMargins: options.pageMargins ?? [40, 60, 40, 60],
@@ -556,9 +528,8 @@ function buildFontsDefinition(resources) {
   }
   return def;
 }
-function registerFonts(pdfMakeRuntime, options) {
-  const fonts = options.fonts ?? [];
-  if (!fonts.length) return null;
+function registerFonts(pdfMakeRuntime, fonts) {
+  if (!fonts || !fonts.length) return null;
   const allVfs = {};
   for (const f of fonts) Object.assign(allVfs, buildVfsForFont(f));
   if (pdfMakeRuntime && typeof pdfMakeRuntime.addVirtualFileSystem === "function") {
@@ -602,16 +573,96 @@ async function buildFontResourceFromUrls(name, urls, init) {
 
 // src/pdf/defaultCjk.ts
 var DEFAULT_CJK_FONT_URL = "https://cdn.jsdelivr.net/gh/googlefonts/noto-cjk@main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf";
+var DEFAULT_CJK_BOLD_FONT_URL = "https://cdn.jsdelivr.net/gh/googlefonts/noto-cjk@main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Bold.otf";
 async function loadDefaultCjkFont(options = {}) {
   const name = options.name ?? "NotoSansSC";
   const normal = options.url ?? DEFAULT_CJK_FONT_URL;
-  const urls = { normal };
+  const bold = options.boldUrl ?? DEFAULT_CJK_BOLD_FONT_URL;
+  const urls = { normal, bold, italics: normal, bolditalics: bold };
   return buildFontResourceFromUrls(name, urls, options.requestInit);
 }
 
 // src/mapping/hast.ts
+async function defaultImageResolver(src) {
+  const urlToBase64 = async (url) => {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+  if (src.startsWith("data:")) {
+    return src;
+  }
+  if (src.startsWith("http://") || src.startsWith("https://")) {
+    return await urlToBase64(src);
+  }
+  return src;
+}
+function camelToKebab(str) {
+  return str.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/([A-Z])([A-Z][a-z])/g, "$1-$2").toLowerCase();
+}
+var svgAttrMap = {
+  // SVG 坐标 & 视图
+  viewBox: "viewBox",
+  preserveAspectRatio: "preserveAspectRatio",
+  // 渐变 <linearGradient> / <radialGradient>
+  gradientTransform: "gradientTransform",
+  gradientUnits: "gradientUnits",
+  spreadMethod: "spreadMethod",
+  // <pattern>
+  patternTransform: "patternTransform",
+  patternUnits: "patternUnits",
+  // <clipPath> / <mask>
+  clipPathUnits: "clipPathUnits",
+  maskContentUnits: "maskContentUnits",
+  maskUnits: "maskUnits",
+  // marker 相关
+  markerHeight: "markerHeight",
+  markerWidth: "markerWidth",
+  markerUnits: "markerUnits",
+  // filter 相关
+  filterUnits: "filterUnits",
+  primitiveUnits: "primitiveUnits",
+  kernelMatrix: "kernelMatrix",
+  // feConvolveMatrix
+  kernelUnitLength: "kernelUnitLength",
+  baseFrequency: "baseFrequency",
+  // feTurbulence
+  numOctaves: "numOctaves",
+  stitchTiles: "stitchTiles",
+  surfaceScale: "surfaceScale",
+  specularConstant: "specularConstant",
+  specularExponent: "specularExponent",
+  diffuseConstant: "diffuseConstant",
+  // feComposite
+  in2: "in2",
+  // <fePointLight>, <feSpotLight>
+  xChannelSelector: "xChannelSelector",
+  yChannelSelector: "yChannelSelector",
+  zChannelSelector: "zChannelSelector",
+  limitingConeAngle: "limitingConeAngle",
+  // xlink 属性 (旧标准，仍需支持)
+  xlinkHref: "xlink:href"
+};
+function svgObjectToString(node) {
+  const children = node.children.reduce((acc, n) => {
+    const a = svgObjectToString(n);
+    console.log("a", a);
+    return acc + a;
+  }, "");
+  const propString = Object.keys(node.properties).reduce((acc, key) => {
+    const hasMap = Object.keys(svgAttrMap).includes(key);
+    return acc + ` ${hasMap ? svgAttrMap[key] : camelToKebab(key)}="${node.properties[key]}"`;
+  }, "");
+  return `<${node.tagName}${propString}>${children}</${node.tagName}>`;
+}
 async function mapHastToPdfContent(tree, ctx = {}) {
   const content = [];
+  const imageResolver = ctx.imageResolver || defaultImageResolver;
   function textFromChildren(children) {
     let acc = "";
     for (const ch of children || []) {
@@ -623,37 +674,122 @@ async function mapHastToPdfContent(tree, ctx = {}) {
   }
   function isInlineTag(tagName) {
     const t = (tagName || "").toLowerCase();
-    return t === "a" || t === "strong" || t === "b" || t === "em" || t === "i" || t === "s" || t === "strike" || t === "del" || t === "u" || t === "code" || t === "span" || t === "br" || t === "img";
+    return t === "a" || t === "strong" || t === "b" || t === "em" || t === "i" || t === "s" || t === "strike" || t === "del" || t === "u" || t === "span" || t === "br" || t === "img" || t === "svg";
   }
-  function inline(nodes) {
+  function isInlineCodeTag(node) {
+    if (!node || node.tagName?.toLowerCase() !== "code") return false;
+    const hasNewline = (node.children || []).some(
+      (c) => c.type === "text" && (c.value || "").includes("\n")
+    );
+    return !hasNewline;
+  }
+  function mergeStyles(base, add) {
+    return {
+      bold: base.bold || add.bold,
+      italic: base.italic || add.italic,
+      underline: base.underline || add.underline,
+      strike: base.strike || add.strike,
+      code: base.code || add.code,
+      link: add.link || base.link,
+      // 新的链接覆盖旧的
+      style: [...base.style || [], ...add.style || []]
+    };
+  }
+  function styleToObject(style, text) {
+    const result = { text };
+    if (style.bold) result.style = result.style ? [result.style, "b"].flat() : "b";
+    if (style.italic) result.italics = true;
+    if (style.underline) result.style = result.style ? [result.style, "u"].flat() : "u";
+    if (style.strike) result.style = result.style ? [result.style, "del"].flat() : "del";
+    if (style.code) result.style = result.style ? [result.style, "code"].flat() : "code";
+    if (style.link) {
+      result.link = style.link;
+      result.style = result.style ? [result.style, "a"].flat() : "a";
+    }
+    if (style.style && style.style.length > 0) {
+      result.style = result.style ? [result.style, ...style.style].flat() : style.style;
+    }
+    return result;
+  }
+  function inline(nodes, baseStyle = {}) {
     const parts = [];
     for (const n of nodes || []) {
       if (n.type === "text") {
-        parts.push(n.value ?? "");
+        const textValue = n.value ?? "";
+        if (textValue) {
+          if (Object.keys(baseStyle).length > 0) {
+            parts.push(styleToObject(baseStyle, textValue));
+          } else {
+            parts.push(textValue);
+          }
+        }
       } else if (n.type === "element") {
         const tag = (n.tagName || "").toLowerCase();
-        if (tag === "strong" || tag === "b") parts.push({ text: textFromChildren(n.children || []), bold: true });
-        else if (tag === "em" || tag === "i") parts.push({ text: textFromChildren(n.children || []), italics: true });
-        else if (tag === "s" || tag === "strike" || tag === "del") parts.push({ text: textFromChildren(n.children || []), decoration: "lineThrough" });
-        else if (tag === "u") parts.push({ text: textFromChildren(n.children || []), decoration: "underline" });
-        else if (tag === "code") parts.push({ text: textFromChildren(n.children || []), style: "code" });
-        else if (tag === "a") parts.push({ text: textFromChildren(n.children || []), link: n.properties?.href, style: "link" });
-        else if (tag === "br") parts.push("\n");
-        else if (tag === "img") {
-          const src = n.properties?.src;
-          const alt = n.properties?.alt || "";
-          parts.push({ text: alt });
-        } else if (n.children) {
-          const inner = textFromChildren(n.children || []);
-          if (inner) parts.push(inner);
+        let currentStyle = { ...baseStyle };
+        switch (tag) {
+          case "strong":
+          case "b":
+            currentStyle = mergeStyles(currentStyle, { bold: true });
+            break;
+          case "em":
+          case "i":
+            currentStyle = mergeStyles(currentStyle, { italic: true });
+            break;
+          case "s":
+          case "strike":
+          case "del":
+            currentStyle = mergeStyles(currentStyle, { strike: true });
+            break;
+          case "u":
+            currentStyle = mergeStyles(currentStyle, { underline: true });
+            break;
+          case "code":
+            currentStyle = mergeStyles(currentStyle, { code: true });
+            break;
+          case "a":
+            currentStyle = mergeStyles(currentStyle, { link: n.properties?.href });
+            break;
+          case "br":
+            parts.push("\n");
+            continue;
+          case "img":
+            const alt = n.properties?.alt || "";
+            const altText = alt || "[\u56FE\u7247]";
+            if (Object.keys(baseStyle).length > 0) {
+              parts.push(styleToObject(baseStyle, altText));
+            } else {
+              parts.push(altText);
+            }
+            continue;
+          case "svg":
+            parts.push({ svg: svgObjectToString(n) });
+            continue;
+        }
+        if (n.children && n.children.length > 0) {
+          const nestedParts = inline(n.children, currentStyle);
+          parts.push(...nestedParts);
+        } else if (tag === "br") {
+        } else if (tag === "img" || tag === "svg") {
+        } else {
+          const textContent = textFromChildren([n]);
+          if (textContent) {
+            if (Object.keys(baseStyle).length > 0) {
+              parts.push(styleToObject(baseStyle, textContent));
+            } else {
+              parts.push(textContent);
+            }
+          }
         }
       }
     }
     return parts;
   }
   function buildTableElement(node) {
+    console.log("buildTableElement node", node);
     const rows = [];
-    const sections = (node.children || []).filter((c) => c.type === "element" && (c.tagName === "thead" || c.tagName === "tbody"));
+    const sections = (node.children || []).filter(
+      (c) => c.type === "element" && (c.tagName === "thead" || c.tagName === "tbody")
+    );
     const trNodes = sections.length ? sections.flatMap((s) => (s.children || []).filter((x) => x.type === "element" && x.tagName === "tr")) : (node.children || []).filter((x) => x.type === "element" && x.tagName === "tr");
     for (const tr of trNodes) {
       const cells = [];
@@ -669,21 +805,56 @@ async function mapHastToPdfContent(tree, ctx = {}) {
             if (child.type === "element") {
               const tag = child.tagName?.toLowerCase();
               if (tag === "ul" || tag === "ol") {
-                const listItems = (child.children || []).filter((li) => li.type === "element" && li.tagName?.toLowerCase() === "li").map((li) => "\u2022 " + textFromChildren(li.children || []).trim()).join("\n");
+                const listItems = (child.children || []).filter((li) => li.type === "element" && li.tagName?.toLowerCase() === "li").map((li) => {
+                  const itemContent = inline(li.children || []);
+                  const itemText = itemContent.length > 0 ? itemContent : "[\u7A7A]";
+                  return "\u2022 " + (Array.isArray(itemText) ? itemText.map((p) => typeof p === "string" ? p : p.text || "").join("") : itemText);
+                }).join("\n");
                 if (listItems) parts.push(listItems);
               } else if (tag === "p" || tag === "div") {
-                const txt = textFromChildren(child.children || []).trim();
-                if (txt) parts.push(txt);
+                const inlineContent = inline(child.children || []);
+                if (inlineContent.length > 0) {
+                  const hasFormat = inlineContent.some((item) => typeof item !== "string");
+                  if (hasFormat) {
+                    parts.push(inlineContent);
+                  } else {
+                    const text = inlineContent.join("").trim();
+                    if (text) parts.push(text);
+                  }
+                }
               } else {
-                const txt = textFromChildren([child]).trim();
-                if (txt) parts.push(txt);
+                const inlineContent = inline([child]);
+                if (inlineContent.length > 0) {
+                  const hasFormat = inlineContent.some((item) => typeof item !== "string");
+                  if (hasFormat) {
+                    parts.push(inlineContent);
+                  } else {
+                    const text = inlineContent.join("").trim();
+                    if (text) parts.push(text);
+                  }
+                }
               }
             } else if (child.type === "text") {
               const txt = String(child.value || "").trim();
               if (txt) parts.push(txt);
             }
           }
-          cellContent = { text: parts.join("\n") || "" };
+          if (parts.length === 0) {
+            cellContent = { text: "" };
+          } else if (parts.length === 1 && typeof parts[0] === "string") {
+            cellContent = { text: parts[0] };
+          } else {
+            const flatParts = [];
+            for (let i = 0; i < parts.length; i++) {
+              if (i > 0) flatParts.push("\n");
+              if (Array.isArray(parts[i])) {
+                flatParts.push(...parts[i]);
+              } else {
+                flatParts.push(parts[i]);
+              }
+            }
+            cellContent = { text: flatParts };
+          }
         } else {
           const inlineContent = inline(cell.children || []);
           const cleanedContent = inlineContent.filter((item) => {
@@ -701,10 +872,13 @@ async function mapHastToPdfContent(tree, ctx = {}) {
           cellContent = { text: cleanedContent.length > 0 ? cleanedContent : "" };
         }
         if (isTh) {
-          cellContent.style = "tableHeader";
-          cellContent.fillColor = "#f6f8fa";
+          cellContent.style = "th";
         } else {
-          cellContent.style = "tableCell";
+          cellContent.style = "td";
+        }
+        const alignment = cell.properties?.align;
+        if (alignment === "center" || alignment === "right") {
+          cellContent.alignment = alignment;
         }
         cells.push(cellContent);
       }
@@ -712,8 +886,8 @@ async function mapHastToPdfContent(tree, ctx = {}) {
     }
     return {
       table: { body: rows },
-      layout: createTableLayout(),
-      margin: [0, 8, 0, 16]
+      layout: "tableLayout",
+      style: "table"
     };
   }
   async function visit(node) {
@@ -743,13 +917,15 @@ async function mapHastToPdfContent(tree, ctx = {}) {
       case "p":
       case "div": {
         const children = node.children || [];
-        const hasImage = !!children.find((c) => c.type === "element" && c.tagName?.toLowerCase() === "img");
-        if (hasImage && ctx.imageResolver) {
+        const hasImage = !!children.find(
+          (c) => c.type === "element" && (c.tagName?.toLowerCase() === "img" || c.tagName?.toLowerCase() === "svg")
+        );
+        if (hasImage) {
           let runs = [];
           const flush = () => {
             if (runs.length) {
               const filteredRuns = runs.filter((r) => typeof r !== "string" || r.trim().length > 0);
-              if (filteredRuns.length) content.push({ text: filteredRuns, style: "paragraph" });
+              if (filteredRuns.length) content.push({ text: filteredRuns, style: "p" });
               runs = [];
             }
           };
@@ -759,11 +935,14 @@ async function mapHastToPdfContent(tree, ctx = {}) {
               const src = ch.properties?.src;
               const alt = ch.properties?.alt || "";
               try {
-                const dataUrl = await ctx.imageResolver(src);
+                console.log(2222);
+                const dataUrl = await imageResolver(src);
                 content.push({ image: dataUrl, margin: [0, 4, 0, 8] });
               } catch {
                 if (alt) runs.push({ text: alt, italics: true, color: "#666" });
               }
+            } else if (ch.type === "element" && ch.tagName?.toLowerCase() === "svg") {
+              content.push({ svg: svgObjectToString(ch) });
             } else {
               runs.push(...inline([ch]));
             }
@@ -773,36 +952,149 @@ async function mapHastToPdfContent(tree, ctx = {}) {
           const inlineContent = inline(children);
           const filteredContent = inlineContent.filter((c) => typeof c !== "string" || c.trim().length > 0);
           if (filteredContent.length) {
-            content.push({ text: filteredContent, style: "paragraph" });
+            content.push({ text: filteredContent, style: "p" });
           }
         }
         break;
       }
       case "br":
-        content.push({ text: ["\n"], style: "paragraph" });
+        content.push({ text: ["\n"], style: "p" });
         break;
       case "hr":
-        content.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1 }] });
+        content.push(createHrBorder());
         break;
       case "blockquote": {
         const inner = [];
-        for (const n of node.children || []) {
-          if (n.type === "element" && (n.tagName === "p" || n.tagName === "div")) {
-            inner.push({ text: inline(n.children || []), style: "blockquote", margin: [0, 2, 0, 2] });
-          } else if (n.type === "text") {
-            const val = String(n.value ?? "").trim();
-            if (val) inner.push({ text: val, style: "blockquote", margin: [0, 2, 0, 2] });
+        const processBlockquoteChild = async (child) => {
+          if (child.type === "element") {
+            const tag2 = child.tagName?.toLowerCase();
+            switch (tag2) {
+              case "p":
+              case "div": {
+                const inlineContent = inline(child.children || []);
+                if (inlineContent.length > 0) {
+                  return [{ text: inlineContent, style: "blockquote", margin: [0, 2, 0, 2] }];
+                }
+                return [];
+              }
+              case "h1":
+              case "h2":
+              case "h3":
+              case "h4":
+              case "h5":
+              case "h6": {
+                const level = Number(tag2[1]);
+                const txt = textFromChildren(child.children || []);
+                if (txt) {
+                  return [{ text: txt, style: [`h${level}`, "blockquote"], margin: [0, 4, 0, 8] }];
+                }
+                return [];
+              }
+              case "ul":
+              case "ol": {
+                const nestedList = await mapHastToPdfContent({ type: "root", children: [child] }, ctx);
+                return nestedList.map((item) => ({
+                  ...item,
+                  margin: [8, 2, 0, 2],
+                  style: Array.isArray(item.style) ? [...item.style, "blockquote"] : item.style ? [item.style, "blockquote"] : "blockquote"
+                }));
+              }
+              case "blockquote": {
+                const nestedQuote = await mapHastToPdfContent({ type: "root", children: [child] }, ctx);
+                return nestedQuote.map((item) => ({
+                  ...item,
+                  margin: [8, 2, 0, 2]
+                }));
+              }
+              case "table": {
+                const tableElement = buildTableElement(child);
+                return [{
+                  ...tableElement,
+                  margin: [8, 4, 0, 8],
+                  style: Array.isArray(tableElement.style) ? [...tableElement.style, "blockquote"] : tableElement.style ? [tableElement.style, "blockquote"] : "blockquote"
+                }];
+              }
+              // TODO: 引用中嵌套代码块时，导致字体大小会使用引用的而非代码块的
+              case "pre": {
+                const txt = textFromChildren(child.children || []);
+                if (txt) {
+                  const codeBlock = createCodeBlockStyle(txt);
+                  return [{
+                    ...codeBlock,
+                    margin: [8, 4, 0, 8],
+                    style: Array.isArray(codeBlock.style) ? [...codeBlock.style, "blockquote"] : codeBlock.style ? [codeBlock.style, "blockquote"] : "blockquote"
+                  }];
+                }
+                return [];
+              }
+              case "code": {
+                const txt = textFromChildren(child.children || []);
+                const isBlock = child.children?.some((c) => c.type === "text" && (c.value || "").includes("\n"));
+                if (txt) {
+                  if (isBlock) {
+                    const codeBlock = createCodeBlockStyle(txt);
+                    return [{
+                      ...codeBlock,
+                      margin: [8, 4, 0, 8],
+                      style: Array.isArray(codeBlock.style) ? [...codeBlock.style, "blockquote"] : codeBlock.style ? [codeBlock.style, "blockquote"] : "blockquote"
+                    }];
+                  } else {
+                    return [{ text: txt, style: ["code", "blockquote"], margin: [0, 2, 0, 2] }];
+                  }
+                }
+                return [];
+              }
+              case "hr": {
+                return [{ ...createHrBorder(), margin: [8, 4, 0, 8] }];
+              }
+              case "img": {
+                const src = child.properties?.src;
+                const alt = child.properties?.alt || "";
+                try {
+                  const dataUrl = await imageResolver(src);
+                  return [{ image: dataUrl, margin: [8, 4, 0, 8] }];
+                } catch {
+                  if (alt) {
+                    return [{ text: alt, italics: true, color: "#666", style: "blockquote", margin: [0, 2, 0, 2] }];
+                  }
+                }
+                return [];
+              }
+              default: {
+                const inlineContent = inline([child]);
+                if (inlineContent.length > 0) {
+                  return [{ text: inlineContent, style: "blockquote", margin: [0, 2, 0, 2] }];
+                }
+                return [];
+              }
+            }
+          } else if (child.type === "text") {
+            const val = String(child.value ?? "").trim();
+            if (val) {
+              return [{ text: val, style: "blockquote", margin: [0, 2, 0, 2] }];
+            }
           }
+          return [];
+        };
+        for (const child of node.children || []) {
+          const childElements = await processBlockquoteChild(child);
+          inner.push(...childElements);
         }
-        content.push({
-          columns: [
-            createBlockquoteBorder(inner.length * 16),
-            // 根据内容高度调整边框
-            { stack: inner, width: "*" }
-          ],
-          columnGap: 0,
-          margin: [0, 8, 0, 16]
-        });
+        if (inner.length > 0) {
+          content.push({
+            layout: "blockquoteLayout",
+            style: "blockquote",
+            table: {
+              body: [
+                [
+                  {
+                    stack: inner
+                  }
+                ]
+              ]
+            }
+          });
+        }
         break;
       }
       case "pre": {
@@ -811,7 +1103,7 @@ async function mapHastToPdfContent(tree, ctx = {}) {
         break;
       }
       case "code": {
-        const isBlock = !node.children?.some((c) => c.type === "text" && (c.value || "").includes("\n")) ? false : true;
+        const isBlock = node.children?.some((c) => c.type === "text" && (c.value || "").includes("\n"));
         const txt = textFromChildren(node.children || []);
         if (isBlock) {
           content.push(createCodeBlockStyle(txt));
@@ -823,7 +1115,9 @@ async function mapHastToPdfContent(tree, ctx = {}) {
       case "ul":
       case "ol": {
         const items = [];
-        for (const li of (node.children || []).filter((c) => c.type === "element" && c.tagName?.toLowerCase() === "li")) {
+        for (const li of (node.children || []).filter(
+          (c) => c.type === "element" && c.tagName?.toLowerCase() === "li"
+        )) {
           const blocks = [];
           let runs = [];
           const flushRuns = () => {
@@ -837,7 +1131,7 @@ async function mapHastToPdfContent(tree, ctx = {}) {
                 return r;
               }).filter((r) => typeof r !== "string" || r.length > 0);
               if (filteredRuns.length) {
-                blocks.push({ text: filteredRuns, style: "paragraph", margin: [0, 2, 0, 2] });
+                blocks.push({ text: filteredRuns, style: "p", margin: [0, 2, 0, 2] });
               }
               runs = [];
             }
@@ -868,7 +1162,10 @@ async function mapHastToPdfContent(tree, ctx = {}) {
             }
             if (child.type === "element") {
               const tag2 = (child.tagName || "").toLowerCase();
-              if (isInlineTag(tag2)) {
+              if (tag2 === "code" && isInlineCodeTag(child)) {
+                appendInlineSegments(inline([child]));
+                continue;
+              } else if (isInlineTag(tag2)) {
                 appendInlineSegments(inline([child]));
                 continue;
               }
@@ -881,9 +1178,19 @@ async function mapHastToPdfContent(tree, ctx = {}) {
                 });
                 if (cleanedSegs.length && typeof cleanedSegs[0] === "string") {
                   cleanedSegs[0] = cleanedSegs[0].replace(/^[\n\s]+/, "").replace(/[\n\s]+$/, "");
+                  if (!cleanedSegs[0]) {
+                    cleanedSegs.shift();
+                  }
+                }
+                if (cleanedSegs.length && typeof cleanedSegs[cleanedSegs.length - 1] === "string") {
+                  const lastIdx = cleanedSegs.length - 1;
+                  cleanedSegs[lastIdx] = cleanedSegs[lastIdx].replace(/[\n\s]+$/, "");
+                  if (!cleanedSegs[lastIdx]) {
+                    cleanedSegs.pop();
+                  }
                 }
                 if (cleanedSegs.length) {
-                  blocks.push({ text: cleanedSegs, style: "paragraph", margin: [0, 2, 0, 2] });
+                  blocks.push({ text: cleanedSegs, style: "p", margin: [0, 2, 0, 2] });
                 }
                 continue;
               }
@@ -894,47 +1201,51 @@ async function mapHastToPdfContent(tree, ctx = {}) {
               } else if (tag2 === "img") {
                 const src = child.properties?.src;
                 const alt = child.properties?.alt || "";
-                if (ctx.imageResolver) {
-                  try {
-                    const dataUrl = await ctx.imageResolver(src);
-                    blocks.push({ image: dataUrl, margin: [0, 4, 0, 8] });
-                  } catch {
-                    if (alt) blocks.push({ text: alt, italics: true, color: "#666" });
-                  }
-                } else if (alt) {
-                  blocks.push({ text: alt, italics: true, color: "#666" });
+                try {
+                  console.log(3333);
+                  const dataUrl = await imageResolver(src);
+                  blocks.push({ image: dataUrl, margin: [0, 4, 0, 8] });
+                } catch {
+                  if (alt) blocks.push({ text: alt, italics: true, color: "#666" });
                 }
               } else if (tag2 === "blockquote") {
-                const inner = [];
-                for (const n of child.children || []) {
-                  if (n.type === "element" && (n.tagName === "p" || n.tagName === "div")) {
-                    inner.push({ text: inline(n.children || []), margin: [0, 2, 0, 2] });
-                  } else if (n.type === "text") {
-                    const val = String(n.value ?? "").trim();
-                    if (val) inner.push({ text: val, margin: [0, 2, 0, 2] });
-                  }
-                }
-                blocks.push({ stack: inner, margin: [8, 4, 0, 8], style: "paragraph" });
+                const nestedQuote = await mapHastToPdfContent({ type: "root", children: [child] }, ctx);
+                blocks.push(...nestedQuote.map((item) => ({
+                  ...item,
+                  margin: [8, 4, 0, 8]
+                })));
               } else if (tag2 === "table") {
                 blocks.push(buildTableElement(child));
-              } else if (tag2 === "pre" || tag2 === "code") {
+              } else if (tag2 === "pre") {
                 const txt = textFromChildren(child.children || []);
-                blocks.push({ text: txt, style: "code", preserveLeadingSpaces: true, margin: [0, 4, 0, 8] });
+                if (txt) {
+                  blocks.push(createCodeBlockStyle(txt));
+                }
+              } else if (tag2 === "code") {
+                const txt = textFromChildren(child.children || []);
+                const isBlock = child.children?.some((c) => c.type === "text" && (c.value || "").includes("\n"));
+                if (txt) {
+                  if (isBlock) {
+                    blocks.push(createCodeBlockStyle(txt));
+                  } else {
+                    blocks.push({ text: txt, style: "code", preserveLeadingSpaces: true, margin: [0, 2, 0, 2] });
+                  }
+                }
               } else if (tag2 === "hr") {
-                blocks.push({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1 }] });
+                blocks.push(createHrBorder());
               }
             }
           }
           flushRuns();
           if (blocks.length === 0) {
-            items.push({ text: "", style: "paragraph", margin: [0, 2, 0, 2] });
+            items.push({ text: "", style: "p", margin: [0, 2, 0, 2] });
           } else if (blocks.length === 1) {
             items.push(blocks[0]);
           } else {
             items.push({ stack: blocks });
           }
         }
-        content.push(tag === "ol" ? { ol: items } : { ul: items });
+        content.push(tag === "ol" ? { ol: items, style: "ol" } : { ul: items, style: "ul" });
         break;
       }
       case "table": {
@@ -944,27 +1255,24 @@ async function mapHastToPdfContent(tree, ctx = {}) {
       case "img": {
         const src = node.properties?.src;
         const alt = node.properties?.alt || "";
-        if (ctx.imageResolver) {
-          try {
-            const dataUrl = await ctx.imageResolver(src);
-            content.push({ image: dataUrl, margin: [0, 4, 0, 8] });
-          } catch {
-            if (alt) content.push({ text: alt, italics: true, color: "#666" });
-          }
-        } else if (alt) {
-          content.push({ text: alt, italics: true, color: "#666" });
+        try {
+          const dataUrl = await imageResolver(src);
+          content.push({ image: dataUrl, margin: [0, 4, 0, 8] });
+        } catch {
+          if (alt) content.push({ text: alt, italics: true, color: "#666" });
         }
         break;
       }
       default: {
         if (node.children && node.children.length) {
           const txt = textFromChildren(node.children);
-          if (txt) content.push({ text: txt, style: "paragraph" });
+          if (txt) content.push({ text: txt, style: "p" });
         }
       }
     }
   }
   await visit(tree);
+  console.log("content", content);
   return content;
 }
 
@@ -973,14 +1281,13 @@ function invariant(condition, message) {
   if (!condition) throw new Error(message);
 }
 async function markdownToPdf(markdown, options = {}) {
-  invariant(typeof window !== "undefined" && typeof document !== "undefined", "markdownToPdf: must run in browser environment");
+  invariant(
+    typeof window !== "undefined" && typeof document !== "undefined",
+    "markdownToPdf: must run in browser environment"
+  );
   invariant(typeof markdown === "string", "markdownToPdf: markdown must be a string");
   options.onProgress?.("parse");
-  const { tree, flavor } = await parseMarkdown(markdown, {
-    enableHtml: options.enableHtml,
-    sanitize: options.html
-  });
-  console.log("tree", tree);
+  const { tree, flavor } = await parseMarkdown(markdown, options.enableHtml);
   options.onProgress?.("layout");
   let pdfContent;
   if (flavor === "mdast") {
@@ -989,11 +1296,9 @@ async function markdownToPdf(markdown, options = {}) {
     pdfContent = await mapHastToPdfContent(tree, { imageResolver: options.imageResolver });
   }
   const docDefinition = buildDocDefinition(pdfContent, options);
-  console.log("pdfContent", pdfContent);
   options.onProgress?.("emit");
   const pdfMakeAny = options.pdfMakeInstance ?? await import("pdfmake/build/pdfmake.js");
   const pdfMakeResolved = pdfMakeAny.default ?? pdfMakeAny;
-  globalThis.pdfMake = pdfMakeResolved;
   const vfsModule = await import("pdfmake/build/vfs_fonts.js");
   const vfs = vfsModule.vfs ?? vfsModule.default ?? vfsModule;
   if (pdfMakeResolved && typeof pdfMakeResolved.addVirtualFileSystem === "function") {
@@ -1011,29 +1316,26 @@ async function markdownToPdf(markdown, options = {}) {
       }
     }
   }
-  let registered = registerFonts(pdfMakeResolved, options);
-  if (!registered) {
-    const hasCjk = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/.test(markdown);
-    if (hasCjk) {
-      try {
-        const cjkFont = await loadDefaultCjkFont();
-        registered = registerFonts(pdfMakeResolved, { ...options, fonts: [cjkFont], defaultFont: cjkFont.name });
-        docDefinition.fonts = { ...docDefinition.fonts, ...registered?.fontsDef || {} };
-        docDefinition.defaultStyle = { ...docDefinition.defaultStyle, font: cjkFont.name };
-      } catch (e) {
-      }
+  let registered = null;
+  const hasCjk = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/.test(markdown);
+  if (hasCjk) {
+    try {
+      const cjkFont = await loadDefaultCjkFont();
+      registered = registerFonts(pdfMakeResolved, [cjkFont]);
+      docDefinition.fonts = { ...docDefinition.fonts, ...registered?.fontsDef || {} };
+      docDefinition.defaultStyle = { ...docDefinition.defaultStyle, font: cjkFont.name };
+    } catch (e) {
     }
   }
   if (registered) {
+    ;
     docDefinition.fonts = { ...docDefinition.fonts, ...registered.fontsDef };
-    if (options.defaultFont) {
-      docDefinition.defaultStyle = { ...docDefinition.defaultStyle, font: options.defaultFont };
-    }
   }
   return new Promise((resolve, reject) => {
     try {
       const runtime = pdfMakeResolved;
-      const pdfDoc = runtime.createPdf(docDefinition);
+      console.log("docDefinition", docDefinition);
+      const pdfDoc = runtime.createPdf(docDefinition, createLayout());
       pdfDoc.getBuffer((buffer) => {
         const uint8 = new Uint8Array(buffer);
         const blob = new Blob([uint8], { type: "application/pdf" });
@@ -1059,5 +1361,8 @@ var index_default = { markdownToPdf, downloadPdf };
 export {
   index_default as default,
   downloadPdf,
-  markdownToPdf
+  mapHastToPdfContent,
+  mapRemarkToPdfContent,
+  markdownToPdf,
+  parseMarkdown
 };
