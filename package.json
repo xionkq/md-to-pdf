@@ -1,6 +1,6 @@
 {
   "name": "@xionkq/md-to-pdf",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Markdown to PDF (text-preserving) for browsers, TypeScript, framework-agnostic, Vue-ready.",
   "homepage": "https://github.com/xionkq/md-to-pdf#readme",
   "bugs": {
