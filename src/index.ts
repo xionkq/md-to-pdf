@@ -1,6 +1,6 @@
 import type { Processor } from 'unified'
 import { parseMarkdown } from './core/parseMarkdown'
-import { mapRemarkToPdfContent } from './mapping'
+// import { mapRemarkToPdfContent } from './mapping'
 import { buildDocDefinition } from './pdf/builder'
 import { registerFonts } from './pdf/fonts'
 import { loadDefaultCjkFont } from './pdf/defaultCjk'
@@ -63,11 +63,11 @@ export async function markdownToPdf(markdown: string, options: MarkdownToPdfOpti
 
   // 将 AST 映射为 pdfmake 的内容结构
   let pdfContent: any[]
-  if (flavor === 'mdast') {
-    pdfContent = await mapRemarkToPdfContent(tree, { imageResolver: options.imageResolver })
-  } else {
+  // if (flavor === 'mdast') {
+  //   pdfContent = await mapRemarkToPdfContent(tree, { imageResolver: options.imageResolver })
+  // } else {
     pdfContent = await mapHastToPdfContent(tree, { imageResolver: options.imageResolver })
-  }
+  // }
   // 生成基础文档定义（页面尺寸、边距、样式、页眉/页脚）
   const docDefinition = buildDocDefinition(pdfContent, options)
 

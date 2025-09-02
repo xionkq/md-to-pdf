@@ -53,9 +53,9 @@ async function getHtmlProcessor(): Promise<Processor> {
 export async function parseMarkdown(markdown: string, enableHtml?: boolean): Promise<ParseResult> {
   const mdast = (await getMdProcessor()).parse(markdown)
 
-  if (!enableHtml) {
-    return { tree: mdast, flavor: 'mdast' }
-  }
+  // if (!enableHtml) {
+  //   return { tree: mdast, flavor: 'mdast' }
+  // }
 
   // HTML 分支
   const processor = await getHtmlProcessor()
