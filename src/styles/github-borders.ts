@@ -3,7 +3,7 @@
  * 由于 pdfmake 不直接支持 CSS 边框，我们使用 canvas 绘制线条
  */
 
-export interface BorderLine {
+interface BorderLine {
   type: 'line'
   x1: number
   y1: number
@@ -18,27 +18,6 @@ export interface BorderLine {
  * 粗线，颜色为 #d1d9e0
  */
 export function createH1Border(pageWidth: number = 515): any {
-  return {
-    canvas: [
-      {
-        type: 'line',
-        x1: 0,
-        y1: 0,
-        x2: pageWidth,
-        y2: 0,
-        lineWidth: 1,
-        lineColor: '#d1d9e0',
-      } as BorderLine,
-    ],
-    margin: [0, 0, 0, 16], // 底部间距
-  }
-}
-
-/**
- * 创建 H2 标题的底部细线（GitHub 样式）
- * 细线，颜色为 #d1d9e0
- */
-export function createH2Border(pageWidth: number = 515): any {
   return {
     canvas: [
       {
@@ -93,15 +72,7 @@ export function createCodeBlockStyle(content: string): any {
         ],
       ],
     },
-    layout: {
-      hLineWidth: () => 0,
-      vLineWidth: () => 0,
-      paddingLeft: () => 16,
-      paddingRight: () => 16,
-      paddingTop: () => 16,
-      paddingBottom: () => 16,
-      fillColor: '#f0f1f2',
-    },
+    layout: 'codeBlockLayout',
     style: 'codeBlock',
   }
 }

@@ -4,7 +4,7 @@ import { registerFonts } from './pdf/fonts'
 import { loadDefaultCjkFont } from './pdf/defaultCjk'
 import { mapHastToPdfContent } from './mapping/hast'
 import { createLayout } from './styles'
-import {MarkdownPdfResult, MarkdownToPdfOptions} from "./types";
+import { MarkdownPdfResult, MarkdownToPdfOptions } from './types'
 
 /**
  * 核心导出：对外暴露的类型与 API。该文件串联解析、映射与 pdfmake 生成流程。

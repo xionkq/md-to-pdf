@@ -1,11 +1,6 @@
 /* HAST (HTML) → pdfmake 内容映射（基础版，GitHub 样式对齐） */
 
-import {
-  createH1Border,
-  createH2Border,
-  createCodeBlockStyle,
-  createHrBorder,
-} from '../styles/github-borders'
+import { createH1Border, createCodeBlockStyle, createHrBorder } from '../styles/github-borders'
 import { HastNodeBase } from '../types'
 
 export type PdfContent = any[]
@@ -160,9 +155,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
     if (!node || node.tagName?.toLowerCase() !== 'code') return false
 
     // 如果包含换行符，则是块级代码
-    const hasNewline = (node.children || []).some((c: any) =>
-      c.type === 'text' && (c.value || '').includes('\n')
-    )
+    const hasNewline = (node.children || []).some((c: any) => c.type === 'text' && (c.value || '').includes('\n'))
 
     return !hasNewline
   }
@@ -186,7 +179,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
       strike: base.strike || add.strike,
       code: base.code || add.code,
       link: add.link || base.link, // 新的链接覆盖旧的
-      style: [...(base.style || []), ...(add.style || [])]
+      style: [...(base.style || []), ...(add.style || [])],
     }
   }
 
@@ -331,7 +324,12 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                   .map((li: any) => {
                     const itemContent = inline(li.children || [])
                     const itemText = itemContent.length > 0 ? itemContent : '[空]'
-                    return '• ' + (Array.isArray(itemText) ? itemText.map(p => typeof p === 'string' ? p : p.text || '').join('') : itemText)
+                    return (
+                      '• ' +
+                      (Array.isArray(itemText)
+                        ? itemText.map((p) => (typeof p === 'string' ? p : p.text || '')).join('')
+                        : itemText)
+                    )
                   })
                   .join('\n')
                 if (listItems) parts.push(listItems)
@@ -340,7 +338,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                 const inlineContent = inline(child.children || [])
                 if (inlineContent.length > 0) {
                   // 对于段落内容，如果是纯文本则直接添加，否则保持结构
-                  const hasFormat = inlineContent.some(item => typeof item !== 'string')
+                  const hasFormat = inlineContent.some((item) => typeof item !== 'string')
                   if (hasFormat) {
                     parts.push(inlineContent)
                   } else {
@@ -352,7 +350,7 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                 // 其他元素：使用inline处理
                 const inlineContent = inline([child])
                 if (inlineContent.length > 0) {
-                  const hasFormat = inlineContent.some(item => typeof item !== 'string')
+                  const hasFormat = inlineContent.some((item) => typeof item !== 'string')
                   if (hasFormat) {
                     parts.push(inlineContent)
                   } else {
@@ -453,10 +451,8 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
         content.push({ text: txt, style: `h${level}` })
 
         // GitHub 样式：H1 和 H2 添加底部边框
-        if (level === 1) {
+        if (level === 1 || level === 2) {
           content.push(createH1Border())
-        } else if (level === 2) {
-          content.push(createH2Border())
         }
         break
       }
@@ -552,8 +548,11 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                 return nestedList.map((item: any) => ({
                   ...item,
                   margin: [8, 2, 0, 2],
-                  style: Array.isArray(item.style) ? [...item.style, 'blockquote'] :
-                         item.style ? [item.style, 'blockquote'] : 'blockquote'
+                  style: Array.isArray(item.style)
+                    ? [...item.style, 'blockquote']
+                    : item.style
+                      ? [item.style, 'blockquote']
+                      : 'blockquote',
                 }))
               }
 
@@ -562,19 +561,24 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                 const nestedQuote = await mapHastToPdfContent({ type: 'root', children: [child] } as any, ctx)
                 return nestedQuote.map((item: any) => ({
                   ...item,
-                  margin: [8, 2, 0, 2]
+                  margin: [8, 2, 0, 2],
                 }))
               }
 
               case 'table': {
                 // 表格：直接处理并添加引用样式
                 const tableElement = buildTableElement(child)
-                return [{
-                  ...tableElement,
-                  margin: [8, 4, 0, 8],
-                  style: Array.isArray(tableElement.style) ? [...tableElement.style, 'blockquote'] :
-                         tableElement.style ? [tableElement.style, 'blockquote'] : 'blockquote'
-                }]
+                return [
+                  {
+                    ...tableElement,
+                    margin: [8, 4, 0, 8],
+                    style: Array.isArray(tableElement.style)
+                      ? [...tableElement.style, 'blockquote']
+                      : tableElement.style
+                        ? [tableElement.style, 'blockquote']
+                        : 'blockquote',
+                  },
+                ]
               }
               // TODO: 引用中嵌套代码块时，导致字体大小会使用引用的而非代码块的
               case 'pre': {
@@ -582,12 +586,17 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                 const txt = textFromChildren(child.children || [])
                 if (txt) {
                   const codeBlock = createCodeBlockStyle(txt)
-                  return [{
-                    ...codeBlock,
-                    margin: [8, 4, 0, 8],
-                    style: Array.isArray(codeBlock.style) ? [...codeBlock.style, 'blockquote'] :
-                           codeBlock.style ? [codeBlock.style, 'blockquote'] : 'blockquote'
-                  }]
+                  return [
+                    {
+                      ...codeBlock,
+                      margin: [8, 4, 0, 8],
+                      style: Array.isArray(codeBlock.style)
+                        ? [...codeBlock.style, 'blockquote']
+                        : codeBlock.style
+                          ? [codeBlock.style, 'blockquote']
+                          : 'blockquote',
+                    },
+                  ]
                 }
                 return []
               }
@@ -599,12 +608,17 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
                 if (txt) {
                   if (isBlock) {
                     const codeBlock = createCodeBlockStyle(txt)
-                    return [{
-                      ...codeBlock,
-                      margin: [8, 4, 0, 8],
-                      style: Array.isArray(codeBlock.style) ? [...codeBlock.style, 'blockquote'] :
-                             codeBlock.style ? [codeBlock.style, 'blockquote'] : 'blockquote'
-                    }]
+                    return [
+                      {
+                        ...codeBlock,
+                        margin: [8, 4, 0, 8],
+                        style: Array.isArray(codeBlock.style)
+                          ? [...codeBlock.style, 'blockquote']
+                          : codeBlock.style
+                            ? [codeBlock.style, 'blockquote']
+                            : 'blockquote',
+                      },
+                    ]
                   } else {
                     return [{ text: txt, style: ['code', 'blockquote'], margin: [0, 2, 0, 2] }]
                   }
@@ -809,10 +823,12 @@ export async function mapHastToPdfContent(tree: HastNodeBase, ctx: MapContext = 
               } else if (tag === 'blockquote') {
                 // 在列表项中处理 blockquote，使用与主blockquote相同的逻辑
                 const nestedQuote = await mapHastToPdfContent({ type: 'root', children: [child] } as any, ctx)
-                blocks.push(...nestedQuote.map((item: any) => ({
-                  ...item,
-                  margin: [8, 4, 0, 8]
-                })))
+                blocks.push(
+                  ...nestedQuote.map((item: any) => ({
+                    ...item,
+                    margin: [8, 4, 0, 8],
+                  }))
+                )
               } else if (tag === 'table') {
                 blocks.push(buildTableElement(child))
               } else if (tag === 'pre') {

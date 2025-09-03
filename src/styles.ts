@@ -1,4 +1,5 @@
 import type { StyleDictionary } from 'pdfmake/interfaces'
+import { createCodeBlockStyle } from './styles/github-borders'
 
 /**
  * 创建与 GitHub Markdown 样式对齐的默认样式
@@ -27,9 +28,9 @@ export function createDefaultStyles(): StyleDictionary {
     code: { background: '#f0f1f2' },
     // 代码块
     codeBlock: { fontSize: 11.9, margin: [0, 0, 0, 16] },
+    u: { decoration: 'underline' },
 
     // TODO: 待支持
-    u: { decoration: 'underline' },
     em: { italics: true },
     i: { italics: true },
   } as any
@@ -39,52 +40,34 @@ export function createLayout() {
   return {
     // 使用表格布局模拟 blockquote
     blockquoteLayout: {
-      hLineWidth: function () {
-        return 0
-      },
-      vLineWidth: function (i: number) {
-        return i === 0 ? 3 : 0
-      },
-      vLineColor: function () {
-        return '#d1d9e0'
-      },
-      paddingLeft: function () {
-        return 14
-      },
-      paddingRight: function () {
-        return 14
-      },
+      hLineWidth: () => 0,
+      vLineWidth: (i: number) => (i === 0 ? 3 : 0),
+      vLineColor: () => '#d1d9e0',
+      paddingLeft: () => 14,
+      paddingRight: () => 14,
     },
-    // createLayout
     tableLayout: {
-      hLineWidth: function (i: number, node: any) {
-        return 1
-      },
-      vLineWidth: function (i: number, node: any) {
-        return 1
-      },
-      hLineColor: function (i: number, node: any) {
-        return '#d1d9e0'
-      },
-      vLineColor: function (i: number, node: any) {
-        return '#d1d9e0'
-      },
-      paddingLeft: function (i: number, node: any) {
-        return 13
-      },
-      paddingRight: function (i: number, node: any) {
-        return 13
-      },
-      paddingTop: function (i: number, node: any) {
-        return 6
-      },
-      paddingBottom: function (i: number, node: any) {
-        return 6
-      },
+      hLineWidth: () => 1,
+      vLineWidth: () => 1,
+      hLineColor: () => '#d1d9e0',
+      vLineColor: () => '#d1d9e0',
+      paddingLeft: () => 13,
+      paddingRight: () => 13,
+      paddingTop: () => 6,
+      paddingBottom: () => 6,
       fillColor: function (i: number) {
         if (i === 0) return null
         return i % 2 === 0 ? '#f6f8fa' : null
       },
+    },
+    codeBlockLayout: {
+      hLineWidth: () => 0,
+      vLineWidth: () => 0,
+      paddingLeft: () => 16,
+      paddingRight: () => 16,
+      paddingTop: () => 16,
+      paddingBottom: () => 16,
+      fillColor: '#f0f1f2',
     },
   }
 }

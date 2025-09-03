@@ -5,7 +5,6 @@ export interface HastNodeBase {
 
 export type PageSize = 'A4' | 'A3' | 'Letter' | { width: number; height: number }
 
-
 export interface FontResource {
   name: string
   normal: ArrayBuffer | string
@@ -13,7 +12,6 @@ export interface FontResource {
   italics?: ArrayBuffer | string
   bolditalics?: ArrayBuffer | string
 }
-
 
 export interface MarkdownToPdfOptions {
   pageSize?: PageSize

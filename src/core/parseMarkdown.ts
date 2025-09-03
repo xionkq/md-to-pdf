@@ -1,5 +1,5 @@
 import type { Processor } from 'unified'
-import { HastNodeBase } from "../types";
+import { HastNodeBase } from '../types'
 
 // 缓存 unified 处理器，避免多次初始化插件
 let cachedHtmlProcessor: Processor | null = null
