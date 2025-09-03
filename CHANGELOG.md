@@ -8,6 +8,7 @@
 - [ ] 将中文字体单独拆分出来作为 vfs_fonts
 - [ ] 整理 examples
 - [ ] 帮 @types/pdfmake 整理一下类型定义
+- [x] 移除 mdast，仅使用 hast
 
 
 ## 0.1.0

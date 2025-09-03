@@ -8,13 +8,9 @@ import {
   createCodeBlockStyle,
   createHrBorder,
 } from '../styles/github-borders'
+import { HastNodeBase } from '../types'
 
 export type PdfContent = any[]
-
-interface HastNodeBase {
-  type: string
-  [key: string]: any
-}
 
 export interface MapContext {
   imageResolver?: (src: string) => Promise<string>

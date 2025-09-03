@@ -58,16 +58,11 @@ export async function markdownToPdf(markdown: string, options: MarkdownToPdfOpti
 
   options.onProgress?.('parse')
   // 解析 Markdown → remark AST（含 GFM 扩展）
-  const { tree, flavor } = await parseMarkdown(markdown, options.enableHtml)
+  const tree = await parseMarkdown(markdown)
   options.onProgress?.('layout')
 
   // 将 AST 映射为 pdfmake 的内容结构
-  let pdfContent: any[]
-  // if (flavor === 'mdast') {
-  //   pdfContent = await mapRemarkToPdfContent(tree, { imageResolver: options.imageResolver })
-  // } else {
-    pdfContent = await mapHastToPdfContent(tree, { imageResolver: options.imageResolver })
-  // }
+  let pdfContent = await mapHastToPdfContent(tree, { imageResolver: options.imageResolver })
   // 生成基础文档定义（页面尺寸、边距、样式、页眉/页脚）
   const docDefinition = buildDocDefinition(pdfContent, options)
 
@@ -148,7 +143,6 @@ export async function downloadPdf(markdown: string, fileName: string, options?: 
 
 // 导出内部函数用于调试和测试
 export { parseMarkdown } from './core/parseMarkdown'
-export { mapRemarkToPdfContent } from './mapping'
 export { mapHastToPdfContent } from './mapping/hast'
 
 export default { markdownToPdf, downloadPdf }
