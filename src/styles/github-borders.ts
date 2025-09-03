@@ -77,65 +77,6 @@ export function createHrBorder(pageWidth: number = 515): any {
 }
 
 /**
- * 创建引用块的左边框（GitHub 样式）
- * 左侧粗线，颜色为 #d0d7de
- */
-export function createBlockquoteBorder(height: number = 20): any {
-  return {
-    canvas: [
-      {
-        type: 'line',
-        x1: 0,
-        y1: 0,
-        x2: 0,
-        y2: height,
-        lineWidth: 4,
-        lineColor: '#d0d7de',
-      } as BorderLine,
-    ],
-    margin: [0, 0, 8, 0], // 右侧间距
-    width: 4,
-  }
-}
-
-/**
- * 创建表格的边框样式
- * GitHub 表格使用细线边框
- */
-export function createTableLayout(): any {
-  return {
-    hLineWidth: function (i: number, node: any) {
-      return 1
-    },
-    vLineWidth: function (i: number, node: any) {
-      return 1
-    },
-    hLineColor: function (i: number, node: any) {
-      return '#d1d9e0'
-    },
-    vLineColor: function (i: number, node: any) {
-      return '#d1d9e0'
-    },
-    paddingLeft: function (i: number, node: any) {
-      return 13
-    },
-    paddingRight: function (i: number, node: any) {
-      return 13
-    },
-    paddingTop: function (i: number, node: any) {
-      return 6
-    },
-    paddingBottom: function (i: number, node: any) {
-      return 6
-    },
-    fillColor: function (i: number) {
-      if (i === 0) return null
-      return i % 2 === 0 ? '#f6f8fa' : null
-    },
-  }
-}
-
-/**
  * 创建代码块的背景和边框样式
  * GitHub 代码块有浅灰背景和细边框
  */

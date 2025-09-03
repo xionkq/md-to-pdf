@@ -44,7 +44,6 @@ async function imageResolver(src: string): Promise<string> {
 
 async function onDownload() {
   await downloadPdf(markdown.value, 'example-cn.pdf', {
-    enableHtml: true,
     // imageResolver,
   })
 }

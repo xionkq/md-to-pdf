@@ -1,7 +1,7 @@
 import { buildFontResourceFromUrls, type FontUrlSet } from '../utils/fontLoader'
-import type { FontResource } from '../index'
+import type { FontResource } from '../types'
 
-export interface DefaultCjkOptions {
+interface DefaultCjkOptions {
   name?: string
   url?: string // normal weight url
   boldUrl?: string // bold weight url

@@ -1,4 +1,4 @@
-import type { FontResource } from '../index'
+import type { FontResource } from '../types'
 
 export async function fetchArrayBuffer(url: string, init?: RequestInit): Promise<ArrayBuffer> {
   const res = await fetch(url, init)

@@ -1,5 +1,5 @@
 import type { TDocumentDefinitions } from 'pdfmake/interfaces'
-import type { MarkdownToPdfOptions } from '../index'
+import type { MarkdownToPdfOptions } from '../types'
 import { createDefaultStyles } from '../styles'
 
 export function buildDocDefinition(content: any[], options: MarkdownToPdfOptions): TDocumentDefinitions {

@@ -1,11 +1,10 @@
-import type { Processor } from 'unified'
 import { parseMarkdown } from './core/parseMarkdown'
-// import { mapRemarkToPdfContent } from './mapping'
 import { buildDocDefinition } from './pdf/builder'
 import { registerFonts } from './pdf/fonts'
 import { loadDefaultCjkFont } from './pdf/defaultCjk'
 import { mapHastToPdfContent } from './mapping/hast'
 import { createLayout } from './styles'
+import {MarkdownPdfResult, MarkdownToPdfOptions} from "./types";
 
 /**
  * 核心导出：对外暴露的类型与 API。该文件串联解析、映射与 pdfmake 生成流程。
@@ -13,36 +12,6 @@ import { createLayout } from './styles'
  * - 仅在需要时懒加载第三方库，尽量减小初始包体与首屏成本
  * - 保持浏览器端可用（不依赖 Node 特性），但测试中允许注入 stub 的 pdfMake 实例
  */
-
-export type PageSize = 'A4' | 'A3' | 'Letter' | { width: number; height: number }
-
-export interface FontResource {
-  name: string
-  normal: ArrayBuffer | string
-  bold?: ArrayBuffer | string
-  italics?: ArrayBuffer | string
-  bolditalics?: ArrayBuffer | string
-}
-
-export interface MarkdownToPdfOptions {
-  pageSize?: PageSize
-  pageMargins?: [number, number, number, number]
-  pageOrientation?: 'portrait' | 'landscape'
-  // defaultFont?: string
-  // fonts?: FontResource[]
-  /** For testing or advanced usage: provide a custom pdfMake instance */
-  pdfMakeInstance?: any
-  enableHtml?: boolean
-  header?: (currentPage: number, pageCount: number) => any
-  footer?: (currentPage: number, pageCount: number) => any
-  imageResolver?: (src: string) => Promise<string>
-  onProgress?: (phase: 'parse' | 'layout' | 'emit') => void
-}
-
-export interface MarkdownPdfResult {
-  blob: Blob
-  uint8?: Uint8Array
-}
 
 function invariant(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
@@ -56,17 +25,14 @@ export async function markdownToPdf(markdown: string, options: MarkdownToPdfOpti
   )
   invariant(typeof markdown === 'string', 'markdownToPdf: markdown must be a string')
 
-  options.onProgress?.('parse')
   // 解析 Markdown → remark AST（含 GFM 扩展）
   const tree = await parseMarkdown(markdown)
-  options.onProgress?.('layout')
 
   // 将 AST 映射为 pdfmake 的内容结构
   let pdfContent = await mapHastToPdfContent(tree, { imageResolver: options.imageResolver })
   // 生成基础文档定义（页面尺寸、边距、样式、页眉/页脚）
   const docDefinition = buildDocDefinition(pdfContent, options)
 
-  options.onProgress?.('emit')
   // 懒加载 pdfmake，或在测试中注入自定义实例
   // 未找到 pdfmake 实例类型定义文件，因此使用 any
   const pdfMakeAny: any = options.pdfMakeInstance ?? (await import('pdfmake/build/pdfmake.js'))

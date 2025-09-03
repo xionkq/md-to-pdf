@@ -1,4 +1,4 @@
-import type { MarkdownToPdfOptions, FontResource } from '../index'
+import type { MarkdownToPdfOptions, FontResource } from '../types'
 
 // 将 ArrayBuffer/base64 统一转为 base64 字符串，以便写入 pdfmake vfs
 function toBase64(input: ArrayBuffer | string): string {

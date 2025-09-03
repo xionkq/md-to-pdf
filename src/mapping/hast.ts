@@ -3,8 +3,6 @@
 import {
   createH1Border,
   createH2Border,
-  createBlockquoteBorder,
-  createTableLayout,
   createCodeBlockStyle,
   createHrBorder,
 } from '../styles/github-borders'

@@ -1,25 +1,4 @@
-import type { TDocumentDefinitions, StyleDictionary } from 'pdfmake/interfaces'
-
-export interface ThemeOptions {
-  baseFontSize?: number
-  headingFontSizes?: number[] // H1~H6
-  linkColor?: string
-  code?: {
-    font?: string
-    fontSize?: number
-    background?: string
-    borderColor?: string
-  }
-  blockquote?: {
-    borderColor?: string
-    textColor?: string
-  }
-  table?: {
-    headerFill?: string
-    borderColor?: string
-    cellPadding?: number
-  }
-}
+import type { StyleDictionary } from 'pdfmake/interfaces'
 
 /**
  * 创建与 GitHub Markdown 样式对齐的默认样式
