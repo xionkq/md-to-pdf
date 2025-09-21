@@ -1,7 +1,8 @@
 import { parseMarkdown } from './core/parseMarkdown'
 import { buildDocDefinition } from './pdf/builder'
-import { registerFonts } from './pdf/fonts'
+import { registerFonts, registerOfflineFonts, registerMixedFonts } from './pdf/fonts'
 import { loadDefaultCjkFont } from './pdf/defaultCjk'
+import { processOfflineFonts } from './pdf/offlineFonts'
 import { mapHastToPdfContent } from './mapping/hast'
 import { createLayout } from './styles'
 import { MarkdownPdfResult, MarkdownToPdfOptions } from './types'
@@ -53,29 +54,81 @@ export async function markdownToPdf(markdown: string, options: MarkdownToPdfOpti
     }
   }
 
-  // 注册配置中提供的字体
-  // let registered = registerFonts(pdfMakeResolved, options)
-  let registered = null
+  // 处理字体注册（离线字体优先）
+  let registered: any = null
+  let defaultFontName: string | null = null
 
-  // 检测到 md 中包含中文，则加载中文字体文件
-  const hasCjk = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/.test(markdown)
-  if (hasCjk) {
+  // 1. 处理离线字体配置
+  if (options.offlineFonts) {
     try {
-      const cjkFont = await loadDefaultCjkFont()
-      registered = registerFonts(pdfMakeResolved, [cjkFont])
-      // @types/pdfmake 中提供的 TDocumentDefinitions 类型字段似乎不全
-      // 实际的 TDocumentDefinitions 中存在 fonts 和 defaultStyle
-      ;(docDefinition as any).fonts = { ...(docDefinition as any).fonts, ...(registered?.fontsDef || {}) }
-      ;(docDefinition as any).defaultStyle = { ...(docDefinition as any).defaultStyle, font: cjkFont.name }
-    } catch (e) {
-      // 网络失败时静默降级为默认拉丁字体
+      const processed = await processOfflineFonts(options.offlineFonts, markdown)
+
+      if (processed.warnings.length > 0) {
+        console.warn('Offline fonts warnings:', processed.warnings)
+      }
+
+      // 注册离线字体
+      registered = registerOfflineFonts(pdfMakeResolved, processed.config)
+      defaultFontName = processed.recommendedDefaultFont
+
+      // 如果配置了禁用网络字体，则跳过后续的网络字体加载
+      if (processed.disableNetworkFonts) {
+        ;(docDefinition as any).fonts = { ...(docDefinition as any).fonts, ...(registered?.fontsDef || {}) }
+        if (defaultFontName) {
+          ;(docDefinition as any).defaultStyle = { ...(docDefinition as any).defaultStyle, font: defaultFontName }
+        }
+      } else {
+        // 继续处理网络字体（作为补充或回退）
+        await handleNetworkFonts()
+      }
+    } catch (error) {
+      console.warn('Failed to process offline fonts:', error)
+      // 回退到网络字体
+      await handleNetworkFonts()
+    }
+  } else {
+    // 没有离线字体配置，使用原来的网络字体逻辑
+    await handleNetworkFonts()
+  }
+
+  // 2. 处理网络字体加载（原来的逻辑）
+  async function handleNetworkFonts() {
+    // 检测到 md 中包含中文，则加载中文字体文件
+    const hasCjk = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/.test(markdown)
+    if (hasCjk) {
+      try {
+        const cjkFont = await loadDefaultCjkFont()
+
+        // 如果已有离线字体配置，使用混合注册
+        if (registered && options.offlineFonts) {
+          const mixedResult = registerMixedFonts(pdfMakeResolved, {
+            fontResources: [cjkFont],
+            offlineConfig: (await processOfflineFonts(options.offlineFonts, markdown)).config,
+            prioritizeOffline: true,
+          })
+          if (mixedResult) {
+            registered = mixedResult
+            // 如果没有设置默认字体，使用 CJK 字体
+            if (!defaultFontName) defaultFontName = cjkFont.name
+          }
+        } else {
+          // 纯网络字体注册
+          registered = registerFonts(pdfMakeResolved, [cjkFont])
+          defaultFontName = cjkFont.name
+        }
+      } catch (e) {
+        // 网络失败时静默降级
+        console.warn('Failed to load network CJK font:', e)
+      }
     }
   }
+
+  // 3. 应用字体配置到文档定义
   if (registered) {
     ;(docDefinition as any).fonts = { ...(docDefinition as any).fonts, ...registered.fontsDef }
-    // if (options.defaultFont) {
-    //   ;(docDefinition as any).defaultStyle = { ...(docDefinition as any).defaultStyle, font: options.defaultFont }
-    // }
+    if (defaultFontName) {
+      ;(docDefinition as any).defaultStyle = { ...(docDefinition as any).defaultStyle, font: defaultFontName }
+    }
   }
 
   return new Promise<MarkdownPdfResult>((resolve, reject) => {

@@ -85,10 +85,31 @@ or
 
 ### 中文字体
 
-当识别到字符串中包含中文时，会自动使用 NotoSansSC 作为中文字体
+当识别到 markdown 字符串中包含中文时，会自动使用 NotoSansSC 作为中文字体（通过 googlefont CDN 下载）。若无法访问 googlefont CDN 或是希望能够离线使用中文字体，则需要通过配置项 offlineFonts 传入 vfs 字体文件（[vfs 参考](https://pdfmake.github.io/docs/0.1/fonts/custom-fonts-client-side/vfs/)）。
+
+由于通过 pdfmake 生成的 vfs_font.js 为 CommonJS 格式，在现代 ES6 项目中使用不便，本仓库的示例中提供 NotoSansCJKsc.ts 和 方正黑体简体.ts 字体文件可供使用，[参考示例](https://github.com/xionkq/md-to-pdf/blob/main/examples/dev/src/App.vue)。
+
+```ts
+const vfs = (await import('./NotoSansCJKsc')).default
+await downloadPdf(markdown.value, 'example-cn.pdf', {
+  offlineFonts: {
+    vfs: vfs,
+    fontDefinitions: {
+      NotoSansCJKsc: {
+        normal: 'NotoSansCJKsc-Regular.otf',
+        bold: 'NotoSansCJKsc-Bold.otf',
+        italics: 'NotoSansCJKsc-Regular.otf',
+        bolditalics: 'NotoSansCJKsc-Bold.otf',
+      },
+    },
+    defaultCjkFont: 'NotoSansCJKsc',
+    disableNetworkFonts: true,
+  },
+})
+```
 
 ## 计划
-- 自定义字体
+- ~~自定义字体~~
 - 识别行内样式
 
 ## 致谢

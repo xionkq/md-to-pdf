@@ -43,10 +43,45 @@ async function imageResolver(src: string): Promise<string> {
 }
 
 async function onDownload() {
+  const vfs = (await import('./NotoSansCJKsc')).default
   await downloadPdf(markdown.value, 'example-cn.pdf', {
     // imageResolver,
+    offlineFonts: {
+      vfs: vfs, // 或者传入函数: () => myVfs
+      fontDefinitions: {
+        NotoSansCJKsc: {
+          normal: 'NotoSansCJKsc-Regular.otf',
+          bold: 'NotoSansCJKsc-Bold.otf',
+          italics: 'NotoSansCJKsc-Regular.otf',
+          bolditalics: 'NotoSansCJKsc-Bold.otf',
+        },
+      },
+      defaultCjkFont: 'NotoSansCJKsc',
+      disableNetworkFonts: true, // 完全离线模式
+    },
   })
 }
+
+// 使用方正黑体简体，字体来自：https://www.jsdelivr.com/package/npm/pdfmake-chinese
+// async function onDownload() {
+//   const vfs = (await import('./方正黑体简体')).default
+//   await downloadPdf(markdown.value, 'example-cn.pdf', {
+//     // imageResolver,
+//     offlineFonts: {
+//     vfs: vfs,  // 或者传入函数: () => myVfs
+//     fontDefinitions: {
+//       方正黑体简体: {
+//         normal: '方正黑体简体.TTF',
+//         bold: '方正黑体简体.TTF',
+//         italics: '方正黑体简体.TTF',
+//         bolditalics: '方正黑体简体.TTF',
+//       }
+//     },
+//     defaultCjkFont: '方正黑体简体',
+//     disableNetworkFonts: true  // 完全离线模式
+//   }
+//   })
+// }
 </script>
 
 <style scoped>
