@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@xionkq/md-to-pdf':
-        specifier: ^0.1.1
-        version: 0.1.1
+        specifier: ^0.1.2
+        version: 0.1.2
       vue:
         specifier: ^3.4.0
         version: 3.5.18(typescript@5.9.2)
@@ -354,8 +354,8 @@ packages:
   '@vue/shared@3.5.18':
     resolution: {integrity: sha512-cZy8Dq+uuIXbxCZpuLd2GJdeSO/lIzIspC2WtkqIpje5QyFbvLaI5wZtdUjLHjGZrlVX6GilejatWwVYYRc8tA==}
 
-  '@xionkq/md-to-pdf@0.1.1':
-    resolution: {integrity: sha512-6RoR1XVbfIxmxtkPN2CFPBiE08WbyLIsU90IWIrH6kkV9aDD2xAitp/rQ8S0kv0gIahf2yYYhuDdUgbJWH0L8g==}
+  '@xionkq/md-to-pdf@0.1.2':
+    resolution: {integrity: sha512-JhV48U8wOp9arW90MnsQ/3mh4+DLYioGYVvGOCA7TwJZzx5H2202zwBsdvJ53hMFhwK2+xT/CL5D6ubuRQ6R6A==}
 
   bail@2.0.2:
     resolution: {integrity: sha512-0xO6mYd7JB2YesxDKplafRpsiOzPt9V02ddPCLbY1xYGPOX24NTyN50qnUxgCPcSoYMhKpAuBTjQoRZCAkUDRw==}
@@ -1125,7 +1125,7 @@ snapshots:
 
   '@vue/shared@3.5.18': {}
 
-  '@xionkq/md-to-pdf@0.1.1':
+  '@xionkq/md-to-pdf@0.1.2':
     dependencies:
       pdfmake: 0.2.20
       rehype-raw: 7.0.0
