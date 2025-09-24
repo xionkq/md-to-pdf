@@ -5,11 +5,20 @@
 - [ ] 处理代码块标签，颜色高亮等
 - [ ] 配置项的整理、支持和补充
 - [ ] 代码整理，代码目录结构整理
-- [x] 将中文字体单独拆分出来作为 vfs_fonts
 - [ ] 整理 examples
 - [ ] 帮 @types/pdfmake 整理一下类型定义
-- [x] 移除 mdast，仅使用 hast
 - [ ] 使用 rehype-sanitize
+
+
+## 0.1.2
+
+1. 将中文字体单独拆分出来作为 vfs_fonts
+2. 移除 mdast，仅使用 hast
+
+
+## 0.1.1
+
+1. 更新 README
 
 
 ## 0.1.0
