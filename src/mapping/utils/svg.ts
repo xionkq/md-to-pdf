@@ -61,15 +61,19 @@ function camelToKebab(str: string): string {
     .toLowerCase()
 }
 
+/**
+ * 处理SVG节点，转换为字符串格式
+ */
 export function handleSvgNode(node: SvgNode): string {
   const children = node.children.reduce((acc, n) => {
     const a = handleSvgNode(n)
-    console.log('a', a)
     return acc + a
   }, '')
+  
   const propString = Object.keys(node.properties).reduce((acc, key) => {
     const hasMap = Object.keys(svgAttrMap).includes(key)
     return acc + ` ${hasMap ? svgAttrMap[key] : camelToKebab(key)}="${node.properties[key]}"`
   }, '')
+  
   return `<${node.tagName}${propString}>${children}</${node.tagName}>`
 }

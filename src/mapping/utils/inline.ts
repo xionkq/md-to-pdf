@@ -1,5 +1,5 @@
-import { handleSvgNode } from './svg'
 import { textFromChildren } from '../utils'
+import { handleSvgNode } from './svg'
 
 // 累积样式接口，支持样式叠加
 interface TextStyle {
@@ -45,6 +45,9 @@ function styleToObject(style: TextStyle, text: any): any {
   return result
 }
 
+/**
+ * 处理行内元素，支持嵌套样式
+ */
 export function handleInlineNode(nodes: any[], baseStyle: TextStyle = {}): any[] {
   const parts: any[] = []
 
