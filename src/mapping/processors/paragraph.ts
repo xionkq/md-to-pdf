@@ -3,6 +3,7 @@ import { HastNodeBase } from '../../types'
 import { handleInlineNode } from '../utils/inline'
 import { handleSvgNode } from '../utils/svg'
 import { isInlineTag } from '../utils'
+import { extractStyleFromProperties, PdfMakeStyleObject, isEmptyStyle } from '../utils/styleMapper'
 
 /**
  * 段落和Div处理器
@@ -18,6 +19,10 @@ export class ParagraphProcessor implements NodeProcessor {
   async process(node: HastNodeBase, context: ProcessContext): Promise<any[]> {
     const children = node.children || []
     const results: any[] = []
+    
+    // 提取当前节点的样式信息
+    const nodeStyle = extractStyleFromProperties(node.properties)
+    const hasCustomStyle = !isEmptyStyle(nodeStyle)
     
     // 检查是否包含需要特殊处理的元素
     const hasSpecialElements = children.some((c: any) => 
@@ -35,7 +40,12 @@ export class ParagraphProcessor implements NodeProcessor {
         if (runs.length) {
           const filteredRuns = runs.filter((r) => typeof r !== 'string' || r.trim().length > 0)
           if (filteredRuns.length) {
-            results.push({ text: filteredRuns, style: 'p' })
+            const textResult: any = { text: filteredRuns, style: 'p' }
+            // 应用自定义样式到文本对象
+            if (hasCustomStyle) {
+              Object.assign(textResult, nodeStyle)
+            }
+            results.push(textResult)
           }
           runs = []
         }
@@ -72,7 +82,12 @@ export class ParagraphProcessor implements NodeProcessor {
       const inlineContent = handleInlineNode(children)
       const filteredContent = inlineContent.filter((c) => typeof c !== 'string' || c.trim().length > 0)
       if (filteredContent.length) {
-        results.push({ text: filteredContent, style: 'p' })
+        const textResult: any = { text: filteredContent, style: 'p' }
+        // 应用自定义样式到文本对象
+        if (hasCustomStyle) {
+          Object.assign(textResult, nodeStyle)
+        }
+        results.push(textResult)
       }
     }
 

@@ -59,6 +59,48 @@ await downloadPdf('# Title\n\nContent', 'doc.pdf');
 
 - Chinese italic text is not supported (NotoSansSC doesn't have italic fonts)
 
+## Inline Styles Support
+
+Support for using `style` attributes in HTML tags to set inline styles, which will be parsed and applied to PDF generation.
+
+### Supported Tags
+
+- `<div style="...">` - Block element styling
+- `<p style="...">` - Paragraph styling  
+- `<span style="...">` - Inline element styling
+- `<strong style="...">`, `<em style="...">` - Formatted element styling
+
+### Supported CSS Properties
+
+#### Text Color
+- `color: red` - CSS color names
+- `color: #ff0000` - Hexadecimal
+- `color: rgb(255, 0, 0)` - RGB format
+
+#### Background Color
+- `background-color: yellow`
+- `background: #ffff00`
+
+#### Font Styles
+- `font-weight: bold` - Bold text
+- `font-style: italic` - Italic text
+- `text-decoration: underline` - Underline
+- `text-decoration: line-through` - Strikethrough
+
+#### Font Size (Experimental)
+- `font-size: 12px` - Pixel values
+- `font-size: 1.2em` - Relative sizes
+- `font-size: 14pt` - Point values
+
+### Color Format Support
+
+Supports multiple CSS color formats:
+- **Color Names**: `red`, `blue`, `green`, `orange` and 35+ standard colors
+- **Hexadecimal**: `#ff0000`, `#f00` (3-digit and 6-digit)
+- **RGB**: `rgb(255, 0, 0)`
+- **RGBA**: `rgba(255, 0, 0, 0.5)` (alpha channel ignored)
+- **HSL**: `hsl(0, 100%, 50%)`
+
 ## Configuration Options (TODO)
 
 ## Special Notes
@@ -110,7 +152,7 @@ await downloadPdf(markdown.value, 'example-cn.pdf', {
 
 ## Roadmap
 - ~~Custom fonts~~
-- Recognize inline styles
+- ~~Recognize inline styles~~
 
 ## Credits
 

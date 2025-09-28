@@ -1,5 +1,6 @@
 import { textFromChildren } from '../utils'
 import { handleSvgNode } from './svg'
+import { extractStyleFromProperties, PdfMakeStyleObject, mergeStyles as mergePdfStyles, isEmptyStyle } from './styleMapper'
 
 // 累积样式接口，支持样式叠加
 interface TextStyle {
@@ -10,9 +11,20 @@ interface TextStyle {
   code?: boolean
   link?: string
   style?: string[]
+  // 新增：支持自定义样式
+  customStyles?: PdfMakeStyleObject
 }
 
 function mergeStyles(base: TextStyle, add: TextStyle): TextStyle {
+  // 合并自定义样式
+  let mergedCustomStyles: PdfMakeStyleObject | undefined
+  if (base.customStyles || add.customStyles) {
+    mergedCustomStyles = mergePdfStyles(base.customStyles || {}, add.customStyles || {})
+    if (isEmptyStyle(mergedCustomStyles)) {
+      mergedCustomStyles = undefined
+    }
+  }
+
   return {
     bold: base.bold || add.bold,
     italic: base.italic || add.italic,
@@ -21,12 +33,19 @@ function mergeStyles(base: TextStyle, add: TextStyle): TextStyle {
     code: base.code || add.code,
     link: add.link || base.link, // 新的链接覆盖旧的
     style: [...(base.style || []), ...(add.style || [])],
+    customStyles: mergedCustomStyles,
   }
 }
 
 function styleToObject(style: TextStyle, text: any): any {
   const result: any = { text }
 
+  // 首先应用自定义样式（来自style属性）
+  if (style.customStyles && !isEmptyStyle(style.customStyles)) {
+    Object.assign(result, style.customStyles)
+  }
+
+  // 然后应用传统的标签样式（可能会覆盖自定义样式）
   if (style.bold) result.style = result.style ? [result.style, 'b'].flat() : 'b'
   if (style.italic) result.italics = true
   if (style.underline) result.style = result.style ? [result.style, 'u'].flat() : 'u'
@@ -66,6 +85,12 @@ export function handleInlineNode(nodes: any[], baseStyle: TextStyle = {}): any[]
       const tag = (n.tagName || '').toLowerCase()
       let currentStyle = { ...baseStyle }
 
+      // 首先处理style属性（如果存在）
+      const customStyles = extractStyleFromProperties(n.properties)
+      if (!isEmptyStyle(customStyles)) {
+        currentStyle = mergeStyles(currentStyle, { customStyles })
+      }
+
       // 根据标签添加样式
       switch (tag) {
         case 'strong':
@@ -89,6 +114,10 @@ export function handleInlineNode(nodes: any[], baseStyle: TextStyle = {}): any[]
           break
         case 'a':
           currentStyle = mergeStyles(currentStyle, { link: n.properties?.href })
+          break
+        case 'span':
+          // span标签主要用于应用自定义样式，不需要额外处理
+          // 自定义样式已经在上面处理了
           break
         case 'br':
           parts.push('\n')

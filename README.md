@@ -59,6 +59,48 @@ await downloadPdf('# Title\n\nContent', 'doc.pdf');
 
 - 不支持中文斜体（NotoSansSC 没有斜体字体）
 
+## 支持的行内样式
+
+支持在HTML标签中使用 `style` 属性来设置行内样式，样式会被解析并应用到 PDF 生成中。
+
+### 支持的标签
+
+- `<div style="...">` - 块级元素样式
+- `<p style="...">` - 段落样式  
+- `<span style="...">` - 行内元素样式
+- `<strong style="...">`, `<em style="...">` - 格式化元素样式
+
+### 支持的CSS属性
+
+#### 文字颜色
+- `color: red` - CSS颜色名
+- `color: #ff0000` - 十六进制
+- `color: rgb(255, 0, 0)` - RGB格式
+
+#### 背景颜色
+- `background-color: yellow`
+- `background: #ffff00`
+
+#### 字体样式
+- `font-weight: bold` - 粗体
+- `font-style: italic` - 斜体
+- `text-decoration: underline` - 下划线
+- `text-decoration: line-through` - 删除线
+
+#### 字体大小（实验性）
+- `font-size: 12px` - 像素值
+- `font-size: 1.2em` - 相对大小
+- `font-size: 14pt` - 点值
+
+### 颜色格式支持
+
+支持多种CSS颜色格式：
+- **颜色名**: `red`, `blue`, `green`, `orange` 等35+种标准颜色
+- **十六进制**: `#ff0000`, `#f00` (3位和6位)
+- **RGB**: `rgb(255, 0, 0)`
+- **RGBA**: `rgba(255, 0, 0, 0.5)` (忽略透明度)
+- **HSL**: `hsl(0, 100%, 50%)`
+
 ## 配置项（TODO）
 
 ## 特殊说明
@@ -110,7 +152,7 @@ await downloadPdf(markdown.value, 'example-cn.pdf', {
 
 ## 计划
 - ~~自定义字体~~
-- 识别行内样式
+- ~~识别行内样式~~
 
 ## 致谢
 
